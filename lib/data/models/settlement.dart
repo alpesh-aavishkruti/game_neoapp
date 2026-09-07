@@ -80,16 +80,17 @@ class Settlement {
 
 /// Where a cup stands part-way through being declared.
 ///
-/// A cup is not settled by naming a winner. Teams are knocked out one at a
-/// time, each elimination settling that team's trades, and when a single team
-/// is left the backend declares it champion by itself. Asking an operator who
-/// won would let a cup be settled on a team that has not actually won yet.
+/// Teams are knocked out one at a time, each elimination settling that team's
+/// trades. That holds until two teams are left: at that point there is no
+/// losing team to report - the result is simply who won - so the last
+/// declaration names the winner instead, and the other side goes out with it.
 class CupProgress {
   const CupProgress({
     required this.pending,
     required this.out,
     this.winner,
     this.winnerAutoDeclared = false,
+    this.declareMode = 'out',
   });
 
   /// Teams still in.
@@ -101,6 +102,11 @@ class CupProgress {
   /// Set once the cup has resolved.
   final String? winner;
   final bool winnerAutoDeclared;
+
+  /// Which question the next declaration asks: `out` for the team being
+  /// knocked out, `winner` for the champion. The server decides this so both
+  /// the app and the web ask the same thing at the same point.
+  final String declareMode;
 
   factory CupProgress.fromJson(Map<String, dynamic> json) {
     List<String> names(String key) {
@@ -118,14 +124,22 @@ class CupProgress {
       out: names('out_nations'),
       winner: winner.isEmpty ? null : winner.toUpperCase(),
       winnerAutoDeclared: json['winner_auto_declared'] == true,
+      // Older builds of the server do not send it; the rule it encodes is the
+      // same one, so fall back to counting what is left.
+      declareMode: (json['declare_mode'] ?? '').toString().trim().isNotEmpty
+          ? json['declare_mode'].toString().trim()
+          : (names('pending_nations').length == 2 ? 'winner' : 'out'),
     );
   }
 
   bool get isComplete => winner != null;
 
-  /// True when knocking out one more team leaves a single side standing - so
-  /// this elimination is also what crowns the champion.
+  /// True when this declaration is the one that finishes the cup - two teams
+  /// are left, so naming the winner settles both sides at once.
   bool get isLastElimination => pending.length == 2;
+
+  /// True when the operator is naming the champion rather than a team going out.
+  bool get asksForWinner => declareMode == 'winner';
 }
 
 /// A house account a match can be settled against.

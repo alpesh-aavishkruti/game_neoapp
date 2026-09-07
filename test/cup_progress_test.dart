@@ -64,4 +64,53 @@ void main() {
       expect(CupProgress.fromJson({'winner_nation': '  '}).winner, isNull);
     });
   });
+
+  group('who the last declaration names', () {
+    test('with three teams left the screen still asks who is out', () {
+      final p = CupProgress.fromJson({
+        'pending_nations': ['IND', 'AUS', 'ENG'],
+        'out_nations': ['SA'],
+        'declare_mode': 'out',
+      });
+      expect(p.asksForWinner, isFalse);
+      expect(p.isLastElimination, isFalse);
+    });
+
+    test('with two teams left it asks for the winner', () {
+      final p = CupProgress.fromJson({
+        'pending_nations': ['IND', 'AUS'],
+        'out_nations': ['SA', 'ENG'],
+        'declare_mode': 'winner',
+      });
+      expect(p.asksForWinner, isTrue);
+      expect(p.isLastElimination, isTrue);
+    });
+
+    test('a server that does not send the mode still asks the right question', () {
+      // The rule is the same one; falling back keeps an older server working.
+      final two = CupProgress.fromJson({
+        'pending_nations': ['IND', 'AUS'],
+        'out_nations': ['SA'],
+      });
+      final three = CupProgress.fromJson({
+        'pending_nations': ['IND', 'AUS', 'ENG'],
+        'out_nations': ['SA'],
+      });
+      expect(two.asksForWinner, isTrue);
+      expect(three.asksForWinner, isFalse);
+    });
+
+    test('a finished cup names the champion the operator declared', () {
+      final p = CupProgress.fromJson({
+        'pending_nations': ['IND'],
+        'out_nations': ['SA', 'ENG', 'AUS'],
+        'winner_nation': 'IND',
+        'winner_auto_declared': false,
+      });
+      expect(p.isComplete, isTrue);
+      expect(p.winner, 'IND');
+      // The operator named it, so it is not presented as an automatic call.
+      expect(p.winnerAutoDeclared, isFalse);
+    });
+  });
 }

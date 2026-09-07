@@ -18,10 +18,10 @@ final cupProgressProvider =
 
 /// Declaring a cup result.
 ///
-/// A cup is settled by knocking teams out, not by naming a winner. Each
-/// elimination settles that team's trades, and when one team is left the
-/// backend crowns it by itself - so this screen only ever asks which team is
-/// OUT. There is no way here to declare a champion that has not actually won.
+/// Teams are knocked out one at a time and each elimination settles that
+/// team's trades. That holds until two teams are left: at that point there is
+/// no losing team to report - the result is simply who won - so this screen
+/// asks for the winner instead, and the other side goes out alongside it.
 class CupDeclareSheet extends ConsumerStatefulWidget {
   const CupDeclareSheet({super.key, required this.cup});
 
@@ -40,18 +40,20 @@ class CupDeclareSheet extends ConsumerStatefulWidget {
 }
 
 class _CupDeclareSheetState extends ConsumerState<CupDeclareSheet> {
-  String? _outNation;
+  String? _nation;
   LedgerAccount? _account;
   bool _busy = false;
   String? _error;
   bool _declaredSomething = false;
 
   Future<void> _declare(CupProgress progress) async {
-    final out = _outNation;
+    final nation = _nation;
     final account = _account;
 
     final problem = switch (null) {
-      _ when out == null => 'Choose the team that is out',
+      _ when nation == null => progress.asksForWinner
+          ? 'Choose the team that won'
+          : 'Choose the team that is out',
       _ when account == null => 'Choose the P&L account',
       _ => null,
     };
@@ -60,17 +62,21 @@ class _CupDeclareSheetState extends ConsumerState<CupDeclareSheet> {
       return;
     }
 
-    final champion = progress.isLastElimination
-        ? progress.pending.firstWhere((n) => n != out, orElse: () => '')
+    // On the closing declaration the team named is the winner, so the one that
+    // goes out is whichever of the two is left over.
+    final loser = progress.asksForWinner
+        ? progress.pending.firstWhere((n) => n != nation, orElse: () => '')
         : '';
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Knock $out out?'),
+        title: Text(progress.asksForWinner ? 'Declare $nation winner?' : 'Knock $nation out?'),
         content: Text(
-          "The trades on $out are settled into every party's ledger."
-          '${champion.isEmpty ? '' : '\n\nThat leaves only $champion standing, so $champion is declared champion and the cup completes.'}',
+          progress.asksForWinner
+              ? "$nation wins the cup and $loser goes out. Both sides are "
+                  "settled into every party's ledger and the cup completes."
+              : "The trades on $nation are settled into every party's ledger.",
         ),
         actions: [
           TextButton(
@@ -79,7 +85,7 @@ class _CupDeclareSheetState extends ConsumerState<CupDeclareSheet> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: Text(champion.isEmpty ? 'Knock out' : 'Knock out & finish'),
+            child: Text(progress.asksForWinner ? 'Declare winner & finish' : 'Knock out'),
           ),
         ],
       ),
@@ -92,13 +98,13 @@ class _CupDeclareSheetState extends ConsumerState<CupDeclareSheet> {
     });
 
     try {
-      await ref.read(matchRepositoryProvider).declareCupLoser(
+      await ref.read(matchRepositoryProvider).declareCupResult(
             cup: widget.cup,
-            outNation: out!,
+            nation: nation!,
             plAccountId: account!.id,
           );
       _declaredSomething = true;
-      setState(() => _outNation = null);
+      setState(() => _nation = null);
       ref.invalidate(cupProgressProvider(widget.cup));
       ref.invalidate(boardProvider(widget.cup));
     } on ApiException catch (e) {
@@ -148,8 +154,8 @@ class _CupDeclareSheetState extends ConsumerState<CupDeclareSheet> {
                       ? _Champion(progress: data)
                       : _Eliminate(
                           progress: data,
-                          selected: _outNation,
-                          onSelected: (n) => setState(() => _outNation = n),
+                          selected: _nation,
+                          onSelected: (n) => setState(() => _nation = n),
                           account: _account,
                           accounts: accounts,
                           onAccount: (a) => setState(() => _account = a),
@@ -250,13 +256,13 @@ class _Eliminate extends StatelessWidget {
                 border: Border(left: BorderSide(color: context.scheme.primary, width: 2)),
               ),
               child: Text(
-                'Two teams left. Knocking one out crowns the other automatically.',
+                'Two teams left - name the one that won. The other goes out with it.',
                 style: TextStyle(fontSize: 12, color: context.scheme.primary),
               ),
             ),
 
           LabelledField(
-            label: 'Team that is out',
+            label: progress.asksForWinner ? 'Team that won' : 'Team that is out',
             child: Wrap(
               spacing: 8,
               runSpacing: 8,

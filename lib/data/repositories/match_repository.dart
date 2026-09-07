@@ -153,13 +153,19 @@ class MatchRepository {
   ///
   /// [outNation] is the team being eliminated - never the winner. When it
   /// leaves one team standing, the backend crowns that team itself.
-  Future<void> declareCupLoser({
+  /// Declares one cup result.
+  ///
+  /// [nation] is the team going OUT for every round but the last; with two
+  /// teams left it is the WINNER instead. The server knows which of the two it
+  /// is being told from how many teams are still pending, and settles the
+  /// other side accordingly.
+  Future<void> declareCupResult({
     required GameMatch cup,
-    required String outNation,
+    required String nation,
     required int plAccountId,
   }) async {
     await _api.post('/soda/cup/${cup.id}/close_cup/', data: {
-      'win_score': outNation,
+      'win_score': nation,
       'pl_account_id': plAccountId,
     });
   }
