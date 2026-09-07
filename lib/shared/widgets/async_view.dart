@@ -1,0 +1,106 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/network/api_exception.dart';
+import '../../core/theme/app_theme.dart';
+
+/// One place that decides how loading, empty and failure look.
+///
+/// Screens hand it an [AsyncValue] and a builder; they never write their own
+/// spinner or error text, so a failure reads the same wherever it happens.
+class AsyncView<T> extends StatelessWidget {
+  const AsyncView({
+    super.key,
+    required this.value,
+    required this.builder,
+    required this.onRetry,
+    this.isEmpty,
+    this.emptyTitle = 'Nothing here yet',
+    this.emptyMessage,
+  });
+
+  final AsyncValue<T> value;
+  final Widget Function(T data) builder;
+  final VoidCallback onRetry;
+
+  /// Lets a screen say what "empty" means for its own data.
+  final bool Function(T data)? isEmpty;
+  final String emptyTitle;
+  final String? emptyMessage;
+
+  @override
+  Widget build(BuildContext context) => value.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => _Failure(
+          message: error is ApiException
+              ? error.message
+              : 'Something went wrong. Please try again.',
+          onRetry: onRetry,
+        ),
+        data: (data) {
+          if (isEmpty?.call(data) == true) {
+            return _Empty(title: emptyTitle, message: emptyMessage);
+          }
+          return builder(data);
+        },
+      );
+}
+
+class _Failure extends StatelessWidget {
+  const _Failure({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.cloud_off, size: 34, color: context.book.muted),
+              const SizedBox(height: 14),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: context.text.bodyMedium,
+              ),
+              const SizedBox(height: 18),
+              OutlinedButton(
+                onPressed: onRetry,
+                child: const Text('Try again'),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _Empty extends StatelessWidget {
+  const _Empty({required this.title, this.message});
+
+  final String title;
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(title, style: context.text.titleMedium),
+              if (message != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  message!,
+                  textAlign: TextAlign.center,
+                  style: context.text.bodySmall,
+                ),
+              ],
+            ],
+          ),
+        ),
+      );
+}

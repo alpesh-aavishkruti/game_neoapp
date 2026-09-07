@@ -1,0 +1,150 @@
+import 'package:flutter/material.dart';
+
+import '../../core/theme/app_theme.dart';
+import '../masters/more_screen.dart';
+import '../masters/party_master_screen.dart';
+import '../matches/match_list_screen.dart';
+import '../money/reports_screen.dart';
+
+/// The five places the app is organised around.
+///
+/// Party master earns a permanent spot because it is opened dozens of times a
+/// day to check a code or a balance. Everything set up once and touched rarely
+/// sits behind More.
+class AppShell extends StatefulWidget {
+  const AppShell({super.key});
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  int _index = 0;
+
+  static const _destinations = [
+    (icon: Icons.sports_cricket_outlined, active: Icons.sports_cricket, label: 'Matches'),
+    (icon: Icons.menu_book_outlined, active: Icons.menu_book, label: 'Books'),
+    (icon: Icons.bar_chart_outlined, active: Icons.bar_chart, label: 'Reports'),
+    (icon: Icons.groups_outlined, active: Icons.groups, label: 'Party'),
+    (icon: Icons.more_horiz, active: Icons.more_horiz, label: 'More'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // IndexedStack rather than swapping children: an operator flipping to
+      // check a party and back should find the board exactly as they left it,
+      // scroll position and all.
+      body: IndexedStack(
+        index: _index,
+        children: const [
+          MatchListScreen(),
+          MatchListScreen(openBooks: true),
+          ReportsScreen(),
+          PartyMasterScreen(),
+          MoreScreen(),
+        ],
+      ),
+      bottomNavigationBar: _BottomBar(
+        index: _index,
+        destinations: _destinations,
+        onChanged: (i) => setState(() => _index = i),
+      ),
+    );
+  }
+}
+
+/// Material's own NavigationBar marks the active item with a filled pill. The
+/// boards use a 2px rule above the icon instead, which is quieter and lines up
+/// with how the rest of the app marks state.
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({
+    required this.index,
+    required this.destinations,
+    required this.onChanged,
+  });
+
+  final int index;
+  final List<({IconData icon, IconData active, String label})> destinations;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = context.book;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.scheme.surface,
+        border: Border(top: BorderSide(color: book.line)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 62,
+          child: Row(
+            children: [
+              for (var i = 0; i < destinations.length; i++)
+                Expanded(
+                  child: _BarItem(
+                    destination: destinations[i],
+                    selected: i == index,
+                    onTap: () => onChanged(i),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BarItem extends StatelessWidget {
+  const _BarItem({
+    required this.destination,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final ({IconData icon, IconData active, String label}) destination;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colour = selected ? context.scheme.primary : context.book.muted;
+
+    return Semantics(
+      selected: selected,
+      button: true,
+      label: destination.label,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              height: 3,
+              child: selected
+                  ? Center(
+                      child: Container(
+                        width: 24,
+                        height: 2,
+                        color: context.scheme.primary,
+                      ),
+                    )
+                  : null,
+            ),
+            const SizedBox(height: 7),
+            Icon(selected ? destination.active : destination.icon, size: 21, color: colour),
+            const SizedBox(height: 3),
+            Text(
+              destination.label,
+              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: colour),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
