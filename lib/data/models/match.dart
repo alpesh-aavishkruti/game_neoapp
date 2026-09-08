@@ -76,16 +76,32 @@ class GameMatch {
   final bool ptrnEnabled;
   final bool partyBookEnabled;
 
-  factory GameMatch.fromJson(Map<String, dynamic> json) {
+  /// [game] is passed by callers that already know which board they asked for.
+  /// The cup endpoints do not send a `game` field at all, so without it a cup
+  /// would read as a one day match and every board call would go to the wrong
+  /// endpoint.
+  factory GameMatch.fromJson(Map<String, dynamic> json, {GameType? game}) {
+    // A cup's teams arrive as nation_a .. nation_j from the cup endpoints, and
+    // as nation1 .. nation10 from the settlement ones. Read whichever shape
+    // turned up: with neither, a cup board has no teams to show or bet on.
     final nations = <String>[];
-    for (var i = 1; i <= 10; i++) {
-      final value = json['nation$i']?.toString().trim();
+    void take(dynamic raw) {
+      final value = raw?.toString().trim();
       if (value != null && value.isNotEmpty) nations.add(value.toUpperCase());
+    }
+
+    for (var i = 1; i <= 10; i++) {
+      take(json['nation$i']);
+    }
+    if (nations.isEmpty) {
+      for (var i = 0; i < 10; i++) {
+        take(json['nation_${String.fromCharCode(97 + i)}']);
+      }
     }
 
     return GameMatch(
       id: int.tryParse('${json['id']}') ?? 0,
-      game: GameType.parse(json['game']),
+      game: game ?? GameType.parse(json['game']),
       nationA: (json['nation_a'] ?? '').toString().trim().toUpperCase(),
       nationB: (json['nation_b'] ?? '').toString().trim().toUpperCase(),
       nationC: (json['nation_c'] ?? '').toString().trim().isEmpty
@@ -106,6 +122,40 @@ class GameMatch {
       partyBookEnabled: json['party_book_enabled'] != false,
     );
   }
+
+  /// The same match with one or more of the desk switches flipped.
+  GameMatch copyWith({
+    bool? commissionEnabled,
+    bool? ptrnEnabled,
+    bool? partyBookEnabled,
+  }) =>
+      GameMatch(
+        id: id,
+        game: game,
+        nationA: nationA,
+        nationB: nationB,
+        nationC: nationC,
+        cupName: cupName,
+        cupNations: cupNations,
+        isActive: isActive,
+        winNation: winNation,
+        createdAt: createdAt,
+        closeDate: closeDate,
+        commissionEnabled: commissionEnabled ?? this.commissionEnabled,
+        ptrnEnabled: ptrnEnabled ?? this.ptrnEnabled,
+        partyBookEnabled: partyBookEnabled ?? this.partyBookEnabled,
+      );
+
+  // Two objects describing the same match are the same match, whatever their
+  // switches currently read. Providers are keyed on this, so flipping a switch
+  // must not look like a different match and throw the loaded board away.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is GameMatch && other.id == id && other.game == game);
+
+  @override
+  int get hashCode => Object.hash(id, game);
 
   /// The third outcome of a test, named. Falls back to DRAW, which is what the
   /// backend assumes when the column was left empty.

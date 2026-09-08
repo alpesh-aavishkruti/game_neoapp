@@ -23,8 +23,10 @@ class NeonApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light(),
       darkTheme: AppTheme.dark(),
-      // Dark first, but a phone set to light gets the light palette.
-      themeMode: ThemeMode.system,
+      // Pinned to light. Following the phone's setting meant the book showed
+      // up dark for anyone whose handset is in dark mode, which is not the
+      // look this was signed off on.
+      themeMode: ThemeMode.light,
       builder: (context, child) {
         // Respect the reader's text-size setting, but stop at a point where
         // the ledger columns would stop lining up.

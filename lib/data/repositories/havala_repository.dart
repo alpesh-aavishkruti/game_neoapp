@@ -1,6 +1,7 @@
 import '../../core/network/api_client.dart';
 import '../../core/util/app_time.dart';
 import '../models/havala.dart';
+import '../models/party.dart';
 
 /// Money moving between two parties.
 class HavalaRepository {
@@ -53,6 +54,42 @@ class HavalaRepository {
       'h_member': toPartyId,
       'amount': amount,
       if (description.trim().isNotEmpty) 'description': description.trim(),
+    });
+  }
+
+  /// Parties with what they are currently carrying.
+  ///
+  /// The plain party list does not include balances; this endpoint does, and
+  /// squaring people off is the one job that cannot be done without them.
+  Future<List<PartyBalanceRow>> partiesWithBalances() async {
+    final body = await _api.get('/master/parties/fetch_all/');
+    return asList(body)
+        .whereType<Map>()
+        .map((e) => PartyBalanceRow.fromJson(Map<String, dynamic>.from(e)))
+        .toList();
+  }
+
+  /// Squares a set of clients off against one party in a single stroke.
+  ///
+  /// Each client's own balance decides the direction: someone carrying a debit
+  /// receives, someone carrying a credit pays. The server raises one havala per
+  /// client and numbers them from the same voucher run as a manual entry, so
+  /// nothing about the result is special-cased afterwards.
+  Future<void> autoHavala({
+    required int targetPartyId,
+    required DateTime date,
+    required Map<int, double> amountByClientId,
+  }) async {
+    final entries = [
+      for (final e in amountByClientId.entries)
+        if (e.value != 0) {'client_id': e.key, 'amount': e.value},
+    ];
+    if (entries.isEmpty) return;
+
+    await _api.post('/soda/havala/auto_havala/', data: {
+      'party_code': targetPartyId,
+      'date': AppTime.apiDate(date),
+      'entries': entries,
     });
   }
 

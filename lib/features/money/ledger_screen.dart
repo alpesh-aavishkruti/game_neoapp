@@ -241,10 +241,18 @@ class _Statement extends ConsumerWidget {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 24),
                   itemCount: rows.length,
-                  itemBuilder: (context, i) => _LedgerLine(
-                    row: rows[rows.length - 1 - i],
-                    viewingPartyId: party.id,
-                  ),
+                  itemBuilder: (context, i) {
+                    final row = rows[rows.length - 1 - i];
+                    return _LedgerLine(
+                      row: row,
+                      viewingPartyId: party.id,
+                      // Only lines that came out of a book can go back into
+                      // it; a settlement line has no record to remove.
+                      onDelete: row.canDelete
+                          ? () => _deleteRow(context, ref, row, party.id)
+                          : null,
+                    );
+                  },
                 ),
               ),
             ],
@@ -305,18 +313,70 @@ class _ClosingBalance extends StatelessWidget {
   }
 }
 
+/// Confirms, then removes the record a statement line came from.
+///
+/// Named plainly and shown with its figure, because the line on screen is a
+/// rendering and what is actually being deleted is the voucher behind it.
+Future<void> _deleteRow(
+  BuildContext context,
+  WidgetRef ref,
+  LedgerRow row,
+  int partyId,
+) async {
+  final label = row.voucherNo.isEmpty ? 'this entry' : row.voucherNo;
+  // Taken before the dialog: after it, this context may be gone.
+  final messenger = ScaffoldMessenger.of(context);
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: Text('Delete $label?'),
+      content: Text(
+        '${row.description}\n\n'
+        'It comes off this statement and every other book it appears in.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Delete'),
+        ),
+      ],
+    ),
+  );
+  if (ok != true) return;
+
+  try {
+    await ref.read(bookRepositoryProvider).deleteLedgerRow(row);
+    ref.invalidate(ledgerProvider(partyId));
+  } on ApiException catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text(e.message)));
+  } catch (_) {
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Could not delete that entry.')),
+    );
+  }
+}
+
 class _LedgerLine extends StatelessWidget {
-  const _LedgerLine({required this.row, required this.viewingPartyId});
+  const _LedgerLine({
+    required this.row,
+    required this.viewingPartyId,
+    this.onDelete,
+  });
 
   final LedgerRow row;
   final int viewingPartyId;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     final book = context.book;
     final movement = row.movement;
 
-    return Container(
+    final line = Container(
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: book.line)),
       ),
@@ -393,6 +453,11 @@ class _LedgerLine extends StatelessWidget {
         ],
       ),
     );
+
+    if (onDelete == null) return line;
+    // Held rather than swiped: a statement is scrolled constantly and a swipe
+    // here would delete money by accident.
+    return InkWell(onLongPress: onDelete, child: line);
   }
 }
 

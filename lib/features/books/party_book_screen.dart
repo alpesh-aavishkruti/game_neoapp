@@ -8,7 +8,9 @@ import '../../data/models/match.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
+import '../../data/repositories/book_repository.dart';
 import '../money/ledger_screen.dart';
+import 'party_soda_screen.dart';
 
 final matchBookProvider =
     FutureProvider.family<MatchBook, ({GameMatch match, BookKind kind})>((ref, args) async {
@@ -135,7 +137,16 @@ class _BookTable extends ConsumerWidget {
               child: ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
                 itemCount: data.rows.length,
-                itemBuilder: (context, i) => _BookLine(row: data.rows[i], sides: sides),
+                itemBuilder: (context, i) => _BookLine(
+                  row: data.rows[i],
+                  sides: sides,
+                  // A book line is a summary; tapping it asks what it is made
+                  // of. Test matches have no such endpoint, so there the row
+                  // stays a plain row rather than a dead tap target.
+                  onTap: BookRepository.supportsPartySoda(match)
+                      ? () => PartySodaScreen.open(context, match: match, row: data.rows[i])
+                      : null,
+                ),
               ),
             ),
             _BookTotals(totals: data.totals, sides: sides),
@@ -175,16 +186,17 @@ class _BookHeader extends StatelessWidget {
 }
 
 class _BookLine extends StatelessWidget {
-  const _BookLine({required this.row, required this.sides});
+  const _BookLine({required this.row, required this.sides, this.onTap});
 
   final BookRow row;
   final List<String> sides;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final book = context.book;
 
-    return Container(
+    final line = Container(
       decoration: BoxDecoration(
         color: context.scheme.surface,
         border: Border(bottom: BorderSide(color: book.line)),
@@ -230,6 +242,9 @@ class _BookLine extends StatelessWidget {
         ],
       ),
     );
+
+    if (onTap == null) return line;
+    return InkWell(onTap: onTap, child: line);
   }
 }
 

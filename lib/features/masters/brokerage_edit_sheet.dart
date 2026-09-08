@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_exception.dart';
+import '../../core/network/api_client.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/app_time.dart';
@@ -66,7 +67,17 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
   bool _busy = false;
   String? _error;
 
+  /// A brokerage the desk already holds for this party and game. There can
+  /// only be one, so choosing that pair means editing it rather than adding
+  /// another - the same thing the desk system does.
+  Map<String, dynamic>? _existing;
+  bool _looking = false;
+
   bool get _isEditing => widget.editing != null;
+
+  /// The row being written to, whether it was opened for editing or found by
+  /// choosing a party and game.
+  Map<String, dynamic>? get _target => widget.editing ?? _existing;
 
   static const _partnerTypes = ['Same as PTNR', 'Without PTNR'];
 
@@ -76,7 +87,12 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
     final row = widget.editing;
     if (row == null) return;
 
-    _game = GameType.parse(row['game_code']);
+    _applyFigures(row);
+  }
+
+  /// Loads a stored row's figures into the form. The party and game are left
+  /// alone: when this runs mid-edit they are what was just chosen.
+  void _applyFigures(Map<String, dynamic> row) {
     _date = AppTime.toLocal(row['date']) ?? DateTime.now();
     _commPercent.text = _text(row['comm_percent']);
     _commCodePercent.text = _text(row['comm_code_percent']);
@@ -86,6 +102,46 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
         final type = (row['partner${slot.index}_type'] ?? '').toString();
         slot.type = _partnerTypes.contains(type) ? type : null;
       }
+    }
+  }
+
+  /// Looks for a brokerage the desk already holds for the chosen party and
+  /// game, and adopts it.
+  ///
+  /// Without this, saving simply fails - the server refuses a second entry for
+  /// the same pair, and the operator is left retyping into a form that can
+  /// never be saved.
+  Future<void> _findExisting(List<Party> parties) async {
+    if (_isEditing) return;
+    final party = _party;
+    if (party == null) return;
+
+    setState(() {
+      _looking = true;
+      _error = null;
+    });
+
+    try {
+      final body = await ref.read(apiClientProvider).get(
+        '/master/brokerages/',
+        query: {'party': party.id, 'game_code': _game.code},
+      );
+      final rows = asList(body).whereType<Map>().toList();
+      final found =
+          rows.isEmpty ? null : Map<String, dynamic>.from(rows.first);
+
+      if (!mounted) return;
+      setState(() {
+        _existing = found;
+        if (found != null) {
+          _applyFigures(found);
+          _attachParties(found, parties, includeParty: false);
+        }
+      });
+    } catch (_) {
+      // Not fatal: saving still reports plainly if the pair is taken.
+    } finally {
+      if (mounted) setState(() => _looking = false);
     }
   }
 
@@ -105,7 +161,14 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
   void _hydrate(List<Party> parties) {
     final row = widget.editing;
     if (row == null || _party != null) return;
+    _attachParties(row, parties);
+  }
 
+  void _attachParties(
+    Map<String, dynamic> row,
+    List<Party> parties, {
+    bool includeParty = true,
+  }) {
     Party? byId(dynamic id) {
       final value = int.tryParse('$id');
       if (value == null) return null;
@@ -115,7 +178,7 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
       return null;
     }
 
-    _party = byId(row['party']);
+    if (includeParty) _party = byId(row['party']);
     _commCode = byId(row['comm_code']);
     for (final slot in _slots) {
       slot.party = byId(row['partner${slot.index}']);
@@ -183,8 +246,9 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
       }
 
       final api = ref.read(apiClientProvider);
-      if (_isEditing) {
-        await api.patch('/master/brokerages/${widget.editing!['id']}/', data: payload);
+      final target = _target;
+      if (target != null) {
+        await api.patch('/master/brokerages/${target['id']}/', data: payload);
       } else {
         await api.post('/master/brokerages/', data: payload);
       }
@@ -235,11 +299,57 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
                   ),
                 ),
               ),
-              Text(_isEditing ? 'Edit brokerage' : 'New brokerage',
-                  style: context.text.titleMedium),
+              Text(
+                _target == null ? 'New brokerage' : 'Edit brokerage',
+                style: context.text.titleMedium,
+              ),
               const SizedBox(height: 2),
               Text('Commission and partner splits for one game',
                   style: context.text.bodySmall),
+
+              // Say so plainly when the pair already has an entry: the form
+              // has just changed meaning under the operator, and saving will
+              // overwrite figures rather than add a second row.
+              if (!_isEditing && (_looking || _existing != null)) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: book.brandSoft,
+                    borderRadius: BorderRadius.circular(AppTheme.rField),
+                    border: Border(
+                      left: BorderSide(color: context.scheme.primary, width: 2),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      if (_looking)
+                        const SizedBox(
+                          height: 13,
+                          width: 13,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Icon(Icons.edit_outlined,
+                            size: 15, color: context.scheme.primary),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          _looking
+                              ? 'Checking for an existing entry…'
+                              : '${_party?.code ?? 'This party'} already has a '
+                                  '${_game.label} brokerage. Saving updates it.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: context.scheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 16),
 
               parties.when(
@@ -264,7 +374,10 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
                         child: PartyField(
                           parties: list,
                           selected: _party,
-                          onChanged: (p) => setState(() => _party = p),
+                          onChanged: (p) {
+                            setState(() => _party = p);
+                            _findExisting(list);
+                          },
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -281,7 +394,10 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
                                   for (final g in GameType.values)
                                     DropdownMenuItem(value: g, child: Text(g.label)),
                                 ],
-                                onChanged: (v) => setState(() => _game = v ?? _game),
+                                onChanged: (v) {
+                                  setState(() => _game = v ?? _game);
+                                  _findExisting(list);
+                                },
                               ),
                             ),
                           ),
@@ -397,7 +513,7 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white),
                             )
-                          : Text(_isEditing ? 'Save changes' : 'Add brokerage'),
+                          : Text(_target == null ? 'Add brokerage' : 'Save changes'),
                     ),
                   ),
                 ],

@@ -99,3 +99,51 @@ class Party {
     return parts.join(' · ');
   }
 }
+
+/// A party as the balance-carrying list sends it.
+///
+/// The plain party list has no balances at all; this one exists because
+/// squaring people off cannot be done without knowing what each is carrying.
+class PartyBalanceRow {
+  const PartyBalanceRow({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.balance,
+    this.refMemberId,
+    this.isActive = true,
+  });
+
+  final int id;
+  final String code;
+  final String name;
+
+  /// Positive means the party is owed, negative means the party owes.
+  final double balance;
+
+  /// Who introduced this party, when the desk tracks that.
+  final int? refMemberId;
+
+  final bool isActive;
+
+  factory PartyBalanceRow.fromJson(Map<String, dynamic> json) {
+    final ref = json['ref_member'];
+    return PartyBalanceRow(
+      id: int.tryParse('${json['id']}') ?? 0,
+      code: (json['party_code'] ?? '').toString().trim().toUpperCase(),
+      name: (json['party_name'] ?? '').toString().trim(),
+      balance: Money.toDouble(json['closing_balance']),
+      refMemberId: ref is Map
+          ? int.tryParse('${ref['id']}')
+          : (ref == null ? null : int.tryParse('$ref')),
+      isActive: json['is_active'] != false,
+    );
+  }
+
+  /// `RAJ01 — Rajesh Traders`, or just the code when the name repeats it.
+  String get display =>
+      (name.isEmpty || name.toUpperCase() == code) ? code : '$code — $name';
+
+  /// Nothing to settle.
+  bool get isSquare => balance.abs() < 0.005;
+}

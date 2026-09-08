@@ -11,9 +11,12 @@ import '../matches/match_providers.dart';
 import '../books/party_book_screen.dart';
 import 'bet_entry_sheet.dart';
 import 'close_match_sheet.dart';
+import 'bombay_settle_sheet.dart';
 import 'cup_declare_sheet.dart';
+import 'run_wise_screen.dart';
 import 'widgets/entry_row.dart';
 import 'widgets/exposure_panel.dart';
+import 'widgets/match_flags_bar.dart';
 import 'widgets/run_ladder_strip.dart';
 
 /// A match board: position first, entries below.
@@ -34,7 +37,54 @@ class BoardScreen extends ConsumerStatefulWidget {
 class _BoardScreenState extends ConsumerState<BoardScreen> {
   ({String? nation, BetType type})? _lastUsed;
 
-  GameMatch get match => widget.match;
+  /// Set while a switch is being saved, so the board reads back the new state
+  /// immediately instead of waiting for the round trip.
+  GameMatch? _pendingFlags;
+  bool _savingFlags = false;
+
+  GameMatch get match => _pendingFlags ?? widget.match;
+
+  /// Flipping a switch has to look instant - the operator flips it and types
+  /// the next bet. So the new state is shown at once and written behind it; if
+  /// the write fails the switch goes back and says so, because a bet entered
+  /// against a flag that never saved would be wrong.
+  Future<void> _setFlags({
+    bool? commissionEnabled,
+    bool? ptrnEnabled,
+    bool? partyBookEnabled,
+  }) async {
+    if (_savingFlags) return;
+
+    final previous = match;
+    setState(() {
+      _pendingFlags = previous.copyWith(
+        commissionEnabled: commissionEnabled,
+        ptrnEnabled: ptrnEnabled,
+        partyBookEnabled: partyBookEnabled,
+      );
+      _savingFlags = true;
+    });
+
+    try {
+      await ref.read(matchRepositoryProvider).setMatchFlags(
+            match: previous,
+            commissionEnabled: commissionEnabled,
+            ptrnEnabled: ptrnEnabled,
+            partyBookEnabled: partyBookEnabled,
+          );
+      // The match list carries these flags too, so it has to be re-read or the
+      // card behind this screen would still show the old state.
+      ref.invalidate(activeMatchesProvider(previous.game));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _pendingFlags = previous);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save that. Please try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _savingFlags = false);
+    }
+  }
 
   Future<void> _refresh() => ref.refresh(boardProvider(match).future);
 
@@ -153,10 +203,29 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
           if (!match.isSettled)
             PopupMenuButton<String>(
               tooltip: 'More',
-              onSelected: (value) {
-                if (value == 'close') _closeMatch();
+              onSelected: (value) async {
+                switch (value) {
+                  case 'close':
+                    _closeMatch();
+                  case 'runwise':
+                    await RunWiseScreen.open(context, match: match);
+                  case 'bombay':
+                    final saved =
+                        await BombaySettleSheet.show(context, match: match);
+                    if (saved == true) await _refresh();
+                }
               },
               itemBuilder: (context) => [
+                // A session's position is read off run figures, so the full
+                // table belongs to it and to nothing else.
+                if (match.game == GameType.session)
+                  const PopupMenuItem(value: 'runwise', child: Text('Run wise')),
+                // Bombay legs settle elsewhere; a cup and a session have none.
+                if (match.game == GameType.oneDay || match.game == GameType.test)
+                  const PopupMenuItem(
+                    value: 'bombay',
+                    child: Text('Bombay settle'),
+                  ),
                 PopupMenuItem(
                   value: 'close',
                   child: Text(match.game == GameType.cup ? 'Declare result' : 'Close match'),
@@ -179,6 +248,14 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
           onRetry: () => ref.invalidate(boardProvider(match)),
           builder: (data) => Column(
             children: [
+              // Commission, partnerships and the party book decide how the next
+              // entry is written, so they sit above the board rather than
+              // behind a menu.
+              MatchFlagsBar(
+                match: match,
+                busy: _savingFlags,
+                onChanged: _setFlags,
+              ),
               // A session stands on run figures, not on two sides, so it gets
               // the ladder where the other boards get exposure tiles.
               if (match.game == GameType.session)

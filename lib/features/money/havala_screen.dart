@@ -9,6 +9,7 @@ import '../../data/models/havala.dart';
 import '../../data/repositories/havala_repository.dart';
 import '../../core/network/api_exception.dart';
 import '../../shared/widgets/async_view.dart';
+import 'auto_havala_sheet.dart';
 import 'havala_entry_sheet.dart';
 
 final havalaRepositoryProvider = Provider<HavalaRepository>(
@@ -53,6 +54,14 @@ class HavalaScreen extends ConsumerWidget {
               title: const Text('Havala'),
               actions: [
                 IconButton(
+                  icon: const Icon(Icons.auto_fix_high_outlined),
+                  tooltip: 'Auto havala',
+                  onPressed: () async {
+                    final saved = await AutoHavalaSheet.show(context);
+                    if (saved == true) ref.invalidate(havalaListProvider);
+                  },
+                ),
+                IconButton(
                   icon: const Icon(Icons.ios_share),
                   tooltip: 'Share as PDF',
                   onPressed: () => _share(context, ref),
@@ -62,6 +71,14 @@ class HavalaScreen extends ConsumerWidget {
       persistentFooterAlignment: AlignmentDirectional.centerStart,
       persistentFooterButtons: embedded
           ? [
+              TextButton.icon(
+                onPressed: () async {
+                  final saved = await AutoHavalaSheet.show(context);
+                  if (saved == true) ref.invalidate(havalaListProvider);
+                },
+                icon: const Icon(Icons.auto_fix_high_outlined, size: 17),
+                label: const Text('Auto havala'),
+              ),
               TextButton.icon(
                 onPressed: () => _share(context, ref),
                 icon: const Icon(Icons.ios_share, size: 17),

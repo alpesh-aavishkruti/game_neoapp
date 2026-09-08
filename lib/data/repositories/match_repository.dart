@@ -19,7 +19,13 @@ class MatchRepository {
 
   Future<List<GameMatch>> activeMatches(GameType game) async {
     final body = await _api.get(game.activeListPath);
-    return asList(body).map(GameMatch.fromJson).toList();
+    // Each of these paths returns one kind of match, and the cup ones carry no
+    // `game` field - so the kind is stamped from the path that was asked for
+    // rather than guessed from the payload.
+    return asList(body)
+        .whereType<Map>()
+        .map((e) => GameMatch.fromJson(Map<String, dynamic>.from(e), game: game))
+        .toList();
   }
 
   Future<MatchTotals> totals(GameMatch match) async {
@@ -72,9 +78,12 @@ class MatchRepository {
     };
     if (run != null) {
       payload['run'] = run;
-    } else {
+    } else if (nation != null) {
       payload['nation'] = nation;
     }
+    // A Bombay leg on a one day names no side: the key is left out entirely so
+    // the server fills it in. Sending it as null is rejected before that
+    // fallback is ever reached.
 
     await _api.post('/soda/${match.game.slug}/', data: payload);
   }
@@ -95,6 +104,17 @@ class MatchRepository {
   /// the other board endpoints, so it does not follow the `{id}` shape.
   Future<RunLadder> runLadder(GameMatch match) async {
     final body = await _api.get('/soda/session/run_exposure/', query: {'match': match.id});
+    return RunLadder.fromJson(asMap(body));
+  }
+
+  /// The same ladder, over every run the book reaches rather than the window
+  /// around the action.
+  ///
+  /// `run_exposure` trims to what matters right now, which is what the board
+  /// strip wants. This is the whole table - thousands of rungs - for when the
+  /// question is about a figure far from where play currently is.
+  Future<RunLadder> runWise(GameMatch match) async {
+    final body = await _api.get('/soda/session/run_wise/', query: {'match': match.id});
     return RunLadder.fromJson(asMap(body));
   }
 
@@ -149,10 +169,6 @@ class MatchRepository {
     return CupProgress.fromJson(asMap(body));
   }
 
-  /// Knocks one team out of a cup and settles its trades.
-  ///
-  /// [outNation] is the team being eliminated - never the winner. When it
-  /// leaves one team standing, the backend crowns that team itself.
   /// Declares one cup result.
   ///
   /// [nation] is the team going OUT for every round but the last; with two
@@ -168,6 +184,29 @@ class MatchRepository {
       'win_score': nation,
       'pl_account_id': plAccountId,
     });
+  }
+
+  /// Flips one of the desk switches on a match.
+  ///
+  /// Commission, partnerships and the party book are properties of the match,
+  /// not of a single bet: every entry placed afterwards is written against
+  /// whatever they read at that moment. Only the changed flag is sent, so this
+  /// cannot disturb anything else on the match.
+  Future<void> setMatchFlags({
+    required GameMatch match,
+    bool? commissionEnabled,
+    bool? ptrnEnabled,
+    bool? partyBookEnabled,
+  }) async {
+    final data = <String, dynamic>{
+      'commission_enabled': ?commissionEnabled,
+      'ptrn_enabled': ?ptrnEnabled,
+      'party_book_enabled': ?partyBookEnabled,
+    };
+    if (data.isEmpty) return;
+
+    final path = match.game == GameType.cup ? 'cups' : 'matches';
+    await _api.patch('/master/$path/${match.id}/', data: data);
   }
 
   /// Parties available to bet for. Loaded once and searched on the device, so

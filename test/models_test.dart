@@ -157,4 +157,60 @@ void main() {
       expect(totals.positions, isEmpty);
     });
   });
+
+  group('the desk switches on a match', () {
+    final match = GameMatch.fromJson({
+      'id': 77,
+      'game': 'ONE_DAY',
+      'nation_a': 'IND',
+      'nation_b': 'AUS',
+      'is_active': true,
+      'commission_enabled': true,
+      'ptrn_enabled': true,
+      'party_book_enabled': true,
+    });
+
+    test('a switch can be flipped without disturbing the others', () {
+      final flipped = match.copyWith(ptrnEnabled: false);
+      expect(flipped.ptrnEnabled, isFalse);
+      expect(flipped.commissionEnabled, isTrue);
+      expect(flipped.partyBookEnabled, isTrue);
+      // Everything that identifies the match survives the copy.
+      expect(flipped.id, 77);
+      expect(flipped.nationA, 'IND');
+      expect(flipped.game, GameType.oneDay);
+    });
+
+    test('flipping a switch is still the same match', () {
+      // Providers are keyed on the match, so a flipped copy must not read as a
+      // different one - otherwise the loaded board would be thrown away.
+      final flipped = match.copyWith(commissionEnabled: false);
+      expect(flipped, equals(match));
+      expect(flipped.hashCode, equals(match.hashCode));
+    });
+
+    test('a different match is a different match', () {
+      final other = GameMatch.fromJson({
+        'id': 78,
+        'game': 'ONE_DAY',
+        'nation_a': 'IND',
+        'nation_b': 'AUS',
+        'is_active': true,
+      });
+      expect(other, isNot(equals(match)));
+    });
+
+    test('the switches default to on when the server omits them', () {
+      final bare = GameMatch.fromJson({
+        'id': 79,
+        'game': 'ONE_DAY',
+        'nation_a': 'IND',
+        'nation_b': 'AUS',
+        'is_active': true,
+      });
+      expect(bare.commissionEnabled, isTrue);
+      expect(bare.ptrnEnabled, isTrue);
+      expect(bare.partyBookEnabled, isTrue);
+    });
+  });
 }

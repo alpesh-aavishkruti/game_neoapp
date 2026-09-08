@@ -66,4 +66,62 @@ void main() {
       expect(row.date, isNull);
     });
   });
+
+  group('which book a statement line has to be deleted from', () {
+    LedgerRow row(Map<String, dynamic> extra) => LedgerRow.fromJson({
+          'id': 1,
+          'description': 'x',
+          'cr_amount': '0',
+          'dr_amount': '0',
+          'closing_balance': '0',
+          ...extra,
+        });
+
+    test('a havala goes back to the havala book', () {
+      final t = row({'vch_no': 'HAVALA0018', 'original_id': 7}).deleteTarget;
+      expect(t?.path, '/soda/havala/');
+      expect(t?.id, 7);
+    });
+
+    test('an RGML line is a havala too, whatever its voucher reads', () {
+      final t = row({'vch_type': 'RGML', 'vch_no': 'X1', 'original_id': 9}).deleteTarget;
+      expect(t?.path, '/soda/havala/');
+      expect(t?.id, 9);
+    });
+
+    test('an 03515 daybook line is an inflow voucher', () {
+      final t = row({'daybook_code': '03515/26', 'voucher_id': 4}).deleteTarget;
+      expect(t?.path, '/soda/inflow-clearing-jv/');
+    });
+
+    test('the clearing daybooks all route to the clearing book', () {
+      for (final code in ['03501', '03511', '03525', '03535']) {
+        expect(
+          row({'daybook_code': '$code/26', 'voucher_id': 4}).deleteTarget?.path,
+          '/soda/clearing-jv/',
+          reason: code,
+        );
+      }
+      expect(
+        row({'daybook_code': 'CLOSE JV 12', 'voucher_id': 4}).deleteTarget?.path,
+        '/soda/clearing-jv/',
+      );
+    });
+
+    test('anything else carrying a voucher is an opening balance', () {
+      final t = row({'daybook_code': '09999', 'voucher_id': 3}).deleteTarget;
+      expect(t?.path, '/soda/opening-balances/');
+    });
+
+    test('a settled match line cannot be deleted from the statement', () {
+      // It has no record of its own - it was produced by closing a match.
+      final r = row({'vch_no': 'MATCH-77', 'match_id': 77});
+      expect(r.deleteTarget, isNull);
+      expect(r.canDelete, isFalse);
+    });
+
+    test('a havala with no id of its own is refused rather than misrouted', () {
+      expect(row({'vch_no': 'HAVALA0018'}).canDelete, isFalse);
+    });
+  });
 }

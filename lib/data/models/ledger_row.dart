@@ -17,6 +17,9 @@ class LedgerRow {
     this.ptrnSourceId,
     this.ptrnSourceCode,
     this.isEdited = false,
+    this.daybookCode = '',
+    this.originalId,
+    this.voucherId,
   });
 
   final int id;
@@ -39,6 +42,15 @@ class LedgerRow {
 
   final bool isEdited;
 
+  /// Which book the line came out of. The desk routes a deletion off this, so
+  /// it is carried even though nothing displays it.
+  final String daybookCode;
+
+  /// The id of the record this line was rendered from - a havala row uses one,
+  /// a voucher the other.
+  final int? originalId;
+  final int? voucherId;
+
   factory LedgerRow.fromJson(Map<String, dynamic> json) => LedgerRow(
         id: int.tryParse('${json['id']}') ?? 0,
         // The server sends this already rendered in the caller's timezone.
@@ -56,6 +68,9 @@ class LedgerRow {
             ? null
             : json['ptrn_source_code'].toString().trim().toUpperCase(),
         isEdited: json['is_edited'] == true,
+        daybookCode: (json['daybook_code'] ?? '').toString().trim(),
+        originalId: int.tryParse('${json['original_id']}'),
+        voucherId: int.tryParse('${json['voucher_id']}'),
       );
 
   /// `dd-MM-yyyy`, which is how the backend writes the voucher date.
@@ -79,4 +94,35 @@ class LedgerRow {
   /// Whose trades this line drills into: the client whose book the share came
   /// from on a partnership leg, otherwise the party being viewed.
   int? drillIntoPartyId(int viewingPartyId) => ptrnSourceId ?? viewingPartyId;
+
+  /// Which book a line has to be deleted from, and with which id.
+  ///
+  /// A statement line is a rendering of a record in one of four books, and the
+  /// only way back to that record is the shape of the line - the voucher
+  /// prefix, or the daybook code it came out of. These are the desk's own
+  /// rules; a line that matches none of them was produced by settling a match
+  /// and cannot be removed from here at all.
+  ({String path, int id})? get deleteTarget {
+    if (voucherNo.toUpperCase().startsWith('HAVALA') ||
+        voucherType.toUpperCase() == 'RGML') {
+      final id = originalId;
+      return id == null ? null : (path: '/soda/havala/', id: id);
+    }
+
+    final id = voucherId;
+    if (id == null) return null;
+
+    if (daybookCode.startsWith('03515')) {
+      return (path: '/soda/inflow-clearing-jv/', id: id);
+    }
+    if (const ['03501', '03511', '03525', '03535']
+            .any(daybookCode.startsWith) ||
+        daybookCode.contains('CLOSE JV')) {
+      return (path: '/soda/clearing-jv/', id: id);
+    }
+    return (path: '/soda/opening-balances/', id: id);
+  }
+
+  /// True when this line can be taken back out of the book it came from.
+  bool get canDelete => deleteTarget != null;
 }

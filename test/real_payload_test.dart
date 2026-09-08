@@ -238,4 +238,113 @@ void main() {
       expect(match.ptrnEnabled, isTrue);
     });
   });
+
+  group('party balances, as the settle-up list sends them', () {
+    // GET /api/v1/master/parties/fetch_all/
+    test('reads what each party is carrying', () {
+      final row = PartyBalanceRow.fromJson({
+        'id': 42,
+        'party_code': 'PDG',
+        'party_name': 'PDG',
+        'closing_balance': '-2691.80',
+        'ref_member': null,
+        'is_active': true,
+      });
+      expect(row.id, 42);
+      expect(row.balance, -2691.80);
+      expect(row.isSquare, isFalse);
+      // Name repeats the code on real rows, so it is not printed twice.
+      expect(row.display, 'PDG');
+    });
+
+    test('a party with nothing outstanding reads as square', () {
+      final row = PartyBalanceRow.fromJson({
+        'id': 7,
+        'party_code': 'NR',
+        'party_name': 'NAR',
+        'closing_balance': '0.00',
+      });
+      expect(row.isSquare, isTrue);
+      expect(row.display, 'NR — NAR');
+    });
+
+    test('ref_member is read whether it arrives flat or nested', () {
+      expect(
+        PartyBalanceRow.fromJson({'id': 1, 'ref_member': 9}).refMemberId,
+        9,
+      );
+      expect(
+        PartyBalanceRow.fromJson({
+          'id': 1,
+          'ref_member': {'id': 9},
+        }).refMemberId,
+        9,
+      );
+      expect(PartyBalanceRow.fromJson({'id': 1}).refMemberId, isNull);
+    });
+  });
+
+  group('cup, as the cup endpoints actually send it', () {
+    // GET /api/v1/master/matches/cup_active_match/ - copied verbatim. Note
+    // there is no `game` key at all, and the teams are nation_a .. nation_j.
+    final json = {
+      'id': 8,
+      'cup_name': 'IPL 2026',
+      'nation_a': 'AA',
+      'nation_b': 'BB',
+      'nation_c': 'CC',
+      'nation_d': 'DD',
+      'nation_e': '',
+      'nation_f': null,
+      'total_nations': 4,
+      'is_active': true,
+      'status': 'OPEN',
+      'out_nations': '',
+      'pending_nations': ['AA', 'BB', 'CC', 'DD'],
+      'commission_enabled': true,
+      'ptrn_enabled': true,
+      'winner_nation': null,
+      'winner_auto_declared': false,
+    };
+
+    test('a cup asked for by the cup endpoint is a cup', () {
+      // Without being told, this payload reads as a one day match and every
+      // board call goes to /soda/oneday/ with a cup id.
+      final cup = GameMatch.fromJson(json, game: GameType.cup);
+      expect(cup.game, GameType.cup);
+      expect(cup.game.slug, 'cup');
+    });
+
+    test('the teams are read from the nation_a..j shape', () {
+      final cup = GameMatch.fromJson(json, game: GameType.cup);
+      expect(cup.cupNations, ['AA', 'BB', 'CC', 'DD']);
+      // Blank and missing slots are not teams.
+      expect(cup.cupNations, hasLength(4));
+      expect(cup.selectableNations, ['AA', 'BB', 'CC', 'DD']);
+    });
+
+    test('the older nation1..10 shape still wins when it is present', () {
+      final cup = GameMatch.fromJson(
+        {...json, 'nation1': 'IND', 'nation2': 'AUS'},
+        game: GameType.cup,
+      );
+      expect(cup.cupNations, ['IND', 'AUS']);
+    });
+
+    test('a cup is titled by its name, not by two of its teams', () {
+      expect(GameMatch.fromJson(json, game: GameType.cup).title, 'IPL 2026');
+    });
+
+    test('a one day match is unaffected by the fallback', () {
+      final match = GameMatch.fromJson({
+        'id': 77,
+        'game': 'ONE_DAY',
+        'nation_a': 'IND',
+        'nation_b': 'AUS',
+        'is_active': true,
+      });
+      expect(match.game, GameType.oneDay);
+      expect(match.selectableNations, ['IND', 'AUS']);
+    });
+  });
 }
