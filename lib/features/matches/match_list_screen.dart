@@ -208,7 +208,23 @@ class _CardPositions extends ConsumerWidget {
       loading: () => const _PositionsPlaceholder(),
       error: (_, _) => Text('Position unavailable', style: context.text.bodySmall),
       data: (data) {
-        final List<NationPosition> shown = data.totals.positions.take(3).toList();
+        // A session is not bet on sides, so its card shows what it is actually
+        // taken on - K and L - rather than two team names it does not have.
+        final List<NationPosition> shown = match.game == GameType.session
+            ? [
+                NationPosition(
+                  name: 'K',
+                  profitLoss: data.sessionTotals.kTotal,
+                  averageRate: 0,
+                ),
+                NationPosition(
+                  name: 'L',
+                  profitLoss: data.sessionTotals.lTotal,
+                  averageRate: 0,
+                ),
+              ]
+            : data.totals.positions.take(3).toList();
+
         if (shown.isEmpty) {
           return Text('No entries yet', style: context.text.bodySmall);
         }
@@ -258,7 +274,7 @@ class _PositionCell extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            Money.position(position.profitLoss, decimals: 0),
+            Money.position(position.profitLoss),
             style: TextStyle(
               fontFamily: 'Roboto Mono',
               fontSize: 13.5,

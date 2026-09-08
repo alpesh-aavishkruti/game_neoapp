@@ -104,7 +104,7 @@ class _VoucherRow extends StatelessWidget {
                 const StatusChip('Balanced', tone: ChipTone.up)
               else
                 StatusChip(
-                  'Off by ${Money.format((debit - credit).abs(), decimals: 0)}',
+                  'Off by ${Money.format((debit - credit).abs())}',
                   tone: ChipTone.live,
                 ),
             ],
@@ -143,7 +143,7 @@ class _Figure extends StatelessWidget {
         children: [
           Text(label, style: context.text.labelSmall),
           Text(
-            Money.format(value, decimals: 0),
+            Money.format(value),
             style: const TextStyle(
               fontFamily: 'Roboto Mono',
               fontSize: 12.5,

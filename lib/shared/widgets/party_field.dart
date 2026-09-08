@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../data/models/party.dart';
+import '../../features/masters/party_edit_sheet.dart';
 
 /// Picking a party by code or name.
 ///
@@ -136,9 +137,31 @@ class _PartyPickerSheetState extends State<PartyPickerSheet> {
             ),
           ),
           if (shown.isEmpty)
+            // A code that matches nothing is usually a party that has not been
+            // added yet. Sending the operator away to the master and back
+            // loses whatever they were in the middle of, so it is added from
+            // here and comes straight back as the choice.
             Padding(
-              padding: const EdgeInsets.all(24),
-              child: Text('Nothing matches that', style: context.text.bodyMedium),
+              padding: const EdgeInsets.fromLTRB(24, 12, 24, 20),
+              child: Column(
+                children: [
+                  Text('Nothing matches that', style: context.text.bodyMedium),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: () async {
+                      final created = await PartyEditSheet.show(
+                        context,
+                        initialCode: term,
+                      );
+                      if (created != null && context.mounted) {
+                        Navigator.of(context).pop(created);
+                      }
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: Text(term.isEmpty ? 'Add a party' : 'Add $term'),
+                  ),
+                ],
+              ),
             )
           else
             Flexible(

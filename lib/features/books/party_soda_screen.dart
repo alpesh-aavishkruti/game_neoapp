@@ -76,6 +76,9 @@ class PartySodaScreen extends ConsumerWidget {
                 subjectLabel: match.game == GameType.session
                     ? 'Run / client'
                     : 'Nation / client',
+                // Read-only here: a bet is edited on the board it was placed
+                // from, so there are no buttons to leave room for.
+                hasActions: false,
               ),
               Expanded(
                 child: ListView.builder(

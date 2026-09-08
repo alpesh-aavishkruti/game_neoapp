@@ -169,7 +169,11 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
     List<Party> parties, {
     bool includeParty = true,
   }) {
-    Party? byId(dynamic id) {
+    // The list endpoint nests these as objects while the detail endpoint sends
+    // a plain id. Read either, or a stored partner never comes back and the
+    // slot reads empty next to a percentage that is plainly set.
+    Party? byId(dynamic raw) {
+      final id = raw is Map ? raw['id'] : raw;
       final value = int.tryParse('$id');
       if (value == null) return null;
       for (final p in parties) {

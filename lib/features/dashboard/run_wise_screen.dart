@@ -146,7 +146,7 @@ class _RunWiseScreenState extends ConsumerState<RunWiseScreen> {
                             ),
                             const Spacer(),
                             Text(
-                              Money.format(rung.profitLoss, decimals: 0),
+                              Money.format(rung.profitLoss),
                               style: TextStyle(
                                 fontFamily: 'Roboto Mono',
                                 fontSize: 13,

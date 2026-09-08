@@ -27,6 +27,7 @@ final masterRowsProvider =
   return ref.watch(masterRepositoryProvider).rows(path, query: {'page_size': 200});
 });
 
-final closedMatchesProvider = FutureProvider<List<GameMatch>>((ref) async {
-  return ref.watch(masterRepositoryProvider).closedMatches();
+/// Matches and cups a result can be taken back off.
+final recallableMatchesProvider = FutureProvider<List<GameMatch>>((ref) async {
+  return ref.watch(masterRepositoryProvider).recallableMatches();
 });

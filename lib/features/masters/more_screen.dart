@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../../core/util/app_time.dart';
+import '../../data/models/match.dart';
 import '../auth/auth_controller.dart';
 import 'clearing_jv_screen.dart';
 import 'edit_history_screen.dart';
@@ -15,6 +16,9 @@ import 'security_screen.dart';
 
 import 'master_providers.dart';
 import 'simple_master_sheet.dart';
+import 'role_edit_sheet.dart';
+import 'role_permissions_screen.dart';
+import 'user_edit_sheet.dart';
 import 'recall_screen.dart';
 import 'recycle_bin_screen.dart';
 import '../money/opening_balance_screen.dart';
@@ -38,6 +42,13 @@ class MoreScreen extends ConsumerWidget {
         title: 'Match master',
         subtitle: 'Every match on the book',
         path: '/master/matches/',
+        addLabel: 'New match',
+        onAdd: (context) => SimpleMasterSheet.show(
+          context,
+          title: 'Match',
+          path: '/master/matches/',
+          fields: _matchFields,
+        ),
         onEdit: (context, row) => SimpleMasterSheet.show(
           context,
           title: 'Match',
@@ -51,7 +62,8 @@ class MoreScreen extends ConsumerWidget {
               .join(' vs ')
               .toUpperCase(),
           subtitle: [
-            (row['game'] ?? '').toString(),
+            // The stored code reads ONE_DAY; the desk calls it One Day.
+            GameType.parse(row['game']).label,
             if ((row['win_nation'] ?? '').toString().trim().isNotEmpty)
               'won by ${row['win_nation']}',
           ].join(' · '),
@@ -67,12 +79,21 @@ class MoreScreen extends ConsumerWidget {
       open: () => MasterListScreen(
         title: 'Cup master',
         path: '/master/cups/',
+        addLabel: 'New cup',
+        onAdd: (context) => SimpleMasterSheet.show(
+          context,
+          title: 'Cup',
+          path: '/master/cups/',
+          fields: _cupFields,
+          derive: _countCupTeams,
+        ),
         onEdit: (context, row) => SimpleMasterSheet.show(
           context,
           title: 'Cup',
           path: '/master/cups/',
           fields: _cupFields,
           editing: row,
+          derive: _countCupTeams,
         ),
         rowOf: (row) => MasterRowSpec(
           title: (row['cup_name'] ?? row['nation_a'] ?? 'Cup').toString(),
@@ -121,10 +142,17 @@ class MoreScreen extends ConsumerWidget {
           fields: _categoryFields,
           editing: row,
         ),
-        rowOf: (row) => MasterRowSpec(
-          title: (row['category_name'] ?? '—').toString(),
-          subtitle: row['is_active'] == false ? 'Inactive' : '',
-        ),
+        onDelete: (row) => (row['category_name'] ?? 'this category').toString(),
+        rowOf: (row) {
+          // A row that carries no flag predates it and is active, the same way
+          // the form reads it.
+          final active = row['is_active'] != false;
+          return MasterRowSpec(
+            title: (row['category_name'] ?? '—').toString(),
+            trailing: active ? 'Active' : 'Inactive',
+            tone: active ? ChipTone.up : ChipTone.muted,
+          );
+        },
       ),
     ),
     (
@@ -168,17 +196,40 @@ class MoreScreen extends ConsumerWidget {
       open: () => MasterListScreen(
         title: 'Users',
         subtitle: 'Accounts on this organisation',
-        path: '/users/',
+        // The desk reads these off the employee record, not the raw user
+        // table - which an operator account is not allowed to list at all.
+        path: employeePath,
+        addLabel: 'Add user',
+        onAdd: (context) => UserEditSheet.show(context),
+        onEdit: (context, row) => UserEditSheet.show(context, editing: row),
+        onDelete: (row) {
+          final user = row['user'] is Map ? row['user'] as Map : const {};
+          return (user['username'] ?? 'this account').toString();
+        },
         rowOf: (row) {
           final user = row['user'] is Map ? row['user'] as Map : const {};
+          final role = row['role'] is Map ? row['role'] as Map : const {};
           final name = [user['first_name'], user['last_name']]
               .where((e) => (e ?? '').toString().trim().isNotEmpty)
               .join(' ');
+          final username = (user['username'] ?? '').toString();
+
+          final roleName = (role['name'] ?? '').toString();
+          final minutes = row['auto_logout_minutes'];
+
           return MasterRowSpec(
-            title: name.isEmpty ? (user['username'] ?? '—').toString() : name,
-            subtitle: (user['username'] ?? '').toString(),
-            trailing: row['is_org_admin'] == true ? 'Admin' : null,
-            tone: row['is_org_admin'] == true ? ChipTone.open : null,
+            title: name.isEmpty ? (username.isEmpty ? '—' : username) : name,
+            subtitle: [
+              if ((row['user_code'] ?? '').toString().trim().isNotEmpty)
+                row['user_code'].toString(),
+              if (name.isNotEmpty && username.isNotEmpty) username,
+              if ((row['phone'] ?? '').toString().trim().isNotEmpty)
+                row['phone'].toString(),
+              if (minutes != null) 'Logs out after $minutes min',
+              if (user['is_2fa_enabled'] == true) '2FA on',
+            ].join(' · '),
+            trailing: roleName.isEmpty ? null : roleName,
+            tone: roleName.isEmpty ? null : ChipTone.open,
           );
         },
       ),
@@ -190,7 +241,18 @@ class MoreScreen extends ConsumerWidget {
       open: () => MasterListScreen(
         title: 'Roles',
         subtitle: 'What each role may open',
-        path: '/role/',
+        path: rolePath,
+        addLabel: 'Add role',
+        onAdd: (context) => RoleEditSheet.show(context),
+        onEdit: (context, row) => RoleEditSheet.show(context, editing: row),
+        onDelete: (row) => (row['name'] ?? 'this role').toString(),
+        // Naming a role and deciding what it opens are separate jobs, so the
+        // key opens its own screen rather than crowding the rename sheet.
+        trailingAction: (context, row) => (
+          icon: Icons.key_outlined,
+          tooltip: 'Permissions',
+          onTap: () => RolePermissionsScreen.open(context, role: row),
+        ),
         rowOf: (row) => MasterRowSpec(
           title: (row['name'] ?? '—').toString(),
           subtitle: (row['description'] ?? '').toString(),
@@ -243,24 +305,125 @@ class MoreScreen extends ConsumerWidget {
 
   /// A settled match keeps its sides; what is worth correcting from a phone
   /// is a name that was typed wrong, and whether commission and PTRN apply.
+  /// The desk's match form asks for the game and the sides, and nothing else.
+  /// Commission and PTRN are not set here - they live above the board, where
+  /// they decide how the next entry is written.
   static const _matchFields = [
+    ChoiceMasterField(
+      key: 'game',
+      label: 'Game',
+      required: true,
+      options: {
+        'ONE_DAY': 'One Day',
+        'TEST': 'Test',
+        'SESSION': 'Session',
+      },
+    ),
     TextMasterField(key: 'nation_a', label: 'First side', required: true, uppercase: true),
     TextMasterField(key: 'nation_b', label: 'Second side', required: true, uppercase: true),
     TextMasterField(key: 'nation_c', label: 'Third outcome', hint: 'DRAW', uppercase: true),
-    SwitchMasterField(key: 'commission_enabled', label: 'Commission', initial: true),
-    SwitchMasterField(key: 'ptrn_enabled', label: 'PTRN', initial: true),
   ];
 
-  static const _cupFields = [
-    TextMasterField(key: 'cup_name', label: 'Cup name', required: true, uppercase: true),
-    TextMasterField(key: 'nation_a', label: 'Team 1', uppercase: true),
-    TextMasterField(key: 'nation_b', label: 'Team 2', uppercase: true),
-    TextMasterField(key: 'nation_c', label: 'Team 3', uppercase: true),
-    TextMasterField(key: 'nation_d', label: 'Team 4', uppercase: true),
-    TextMasterField(key: 'nation_e', label: 'Team 5', uppercase: true),
-    TextMasterField(key: 'nation_f', label: 'Team 6', uppercase: true),
-    SwitchMasterField(key: 'commission_enabled', label: 'Commission', initial: true),
+  /// True while the cup is at least [count] teams big.
+  static bool Function(Map<String, String?>) _upTo(int count) =>
+      (choices) => (int.tryParse(choices['total_nations'] ?? '') ?? 2) >= count;
+
+  /// How many teams the cup runs, then that many team boxes.
+  ///
+  /// The count is asked for rather than counted, because the server settles on
+  /// it - it is what decides when the last team is standing - and the desk
+  /// asks for it the same way. Boxes past the count are hidden and sent empty,
+  /// so the teams can never disagree with the number above them.
+  ///
+  /// Commission is not set here; it lives above the board with the other
+  /// switches, where it decides how the next entry is written.
+  static final _cupFields = <MasterField>[
+    const TextMasterField(
+        key: 'cup_name', label: 'Cup name', required: true, uppercase: true),
+    ChoiceMasterField(
+      key: 'total_nations',
+      label: 'Number of nations',
+      required: true,
+      options: {for (var i = 2; i <= 10; i++) '$i': '$i'},
+    ),
+    TextMasterField(
+      key: 'nation_a',
+      label: 'Team 1',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(1),
+    ),
+    TextMasterField(
+      key: 'nation_b',
+      label: 'Team 2',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(2),
+    ),
+    TextMasterField(
+      key: 'nation_c',
+      label: 'Team 3',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(3),
+    ),
+    TextMasterField(
+      key: 'nation_d',
+      label: 'Team 4',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(4),
+    ),
+    TextMasterField(
+      key: 'nation_e',
+      label: 'Team 5',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(5),
+    ),
+    TextMasterField(
+      key: 'nation_f',
+      label: 'Team 6',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(6),
+    ),
+    TextMasterField(
+      key: 'nation_g',
+      label: 'Team 7',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(7),
+    ),
+    TextMasterField(
+      key: 'nation_h',
+      label: 'Team 8',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(8),
+    ),
+    TextMasterField(
+      key: 'nation_i',
+      label: 'Team 9',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(9),
+    ),
+    TextMasterField(
+      key: 'nation_j',
+      label: 'Team 10',
+      required: true,
+      uppercase: true,
+      showIf: _upTo(10),
+    ),
   ];
+
+  /// The dropdown hands back its value as text; the server stores a number,
+  /// and its own default of two would finish a bigger cup after one result.
+  static void _countCupTeams(Map<String, dynamic> payload) {
+    payload['total_nations'] =
+        int.tryParse('${payload['total_nations'] ?? ''}') ?? 2;
+  }
 
   static const _categoryFields = [
     TextMasterField(
@@ -395,74 +558,152 @@ class _AccountCard extends StatelessWidget {
   final VoidCallback onChangePassword;
 
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(13),
-        decoration: BoxDecoration(
-          color: context.scheme.primary,
-          borderRadius: BorderRadius.circular(AppTheme.rCard + 4),
+  Widget build(BuildContext context) {
+    final scheme = context.scheme;
+
+    // The organisation is often named after the person running it, and
+    // printing "KPS · KPS" says nothing twice.
+    final place = organisation.trim().toLowerCase() == name.trim().toLowerCase()
+        ? ''
+        : organisation.trim();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 13, 10, 13),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppTheme.rCard + 4),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [scheme.primary, Color.lerp(scheme.primary, Colors.black, 0.22)!],
         ),
-        child: Row(
-          children: [
-            Container(
+        boxShadow: [
+          BoxShadow(
+            color: scheme.primary.withValues(alpha: 0.28),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(AppTheme.rCard),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              name.isEmpty ? '?' : name.substring(0, 1).toUpperCase(),
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+                fontSize: 18,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    height: 1.1,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    if (isOrgAdmin)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.22),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'FULL ACCESS',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.7,
+                          ),
+                        ),
+                      ),
+                    if (isOrgAdmin && place.isNotEmpty) const SizedBox(width: 7),
+                    if (place.isNotEmpty)
+                      Flexible(
+                        child: Text(
+                          place,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 11.5,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _CardAction(
+            icon: Icons.key_outlined,
+            tooltip: 'Change password',
+            onTap: onChangePassword,
+          ),
+          const SizedBox(width: 6),
+          _CardAction(
+            icon: Icons.logout,
+            tooltip: 'Sign out',
+            onTap: onSignOut,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A button on the account card. Given a surface of its own so it reads as
+/// something to press rather than an icon floating on the blue.
+class _CardAction extends StatelessWidget {
+  const _CardAction({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: Material(
+          color: Colors.white.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(AppTheme.rButton),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppTheme.rButton),
+            onTap: onTap,
+            child: SizedBox(
               width: 38,
               height: 38,
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(AppTheme.rButton),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                name.isEmpty ? '?' : name.substring(0, 1).toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 15,
-                ),
-              ),
+              child: Icon(icon, color: Colors.white, size: 18),
             ),
-            const SizedBox(width: 11),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                    ),
-                  ),
-                  if (organisation.isNotEmpty || isOrgAdmin)
-                    Text(
-                      [
-                        if (organisation.isNotEmpty) organisation,
-                        if (isOrgAdmin) 'full access',
-                      ].join(' · '),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.8),
-                        fontSize: 10.5,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            IconButton(
-              icon: const Icon(Icons.key_outlined, color: Colors.white, size: 19),
-              tooltip: 'Change password',
-              onPressed: onChangePassword,
-            ),
-            IconButton(
-              icon: const Icon(Icons.logout, color: Colors.white, size: 20),
-              tooltip: 'Sign out',
-              onPressed: onSignOut,
-            ),
-          ],
+          ),
         ),
       );
 }

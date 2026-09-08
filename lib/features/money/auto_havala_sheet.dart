@@ -273,7 +273,7 @@ class _AutoHavalaSheetState extends ConsumerState<AutoHavalaSheet> {
                                       ?.copyWith(fontSize: 10.5),
                                 ),
                                 secondary: Text(
-                                  Money.format(p.balance.abs(), decimals: 0),
+                                  Money.format(p.balance.abs()),
                                   style: TextStyle(
                                     fontFamily: 'Roboto Mono',
                                     fontSize: 13,
@@ -296,7 +296,7 @@ class _AutoHavalaSheetState extends ConsumerState<AutoHavalaSheet> {
                         ),
                         const Spacer(),
                         Text(
-                          'Net ${Money.format(total.abs(), decimals: 0)}',
+                          'Net ${Money.format(total.abs())}',
                           style: TextStyle(
                             fontFamily: 'Roboto Mono',
                             fontSize: 13,

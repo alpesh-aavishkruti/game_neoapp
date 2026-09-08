@@ -1,4 +1,5 @@
 import '../../core/network/api_client.dart';
+import '../../core/util/money.dart';
 import '../models/bet_entry.dart';
 import '../models/book_row.dart';
 import '../models/ledger_row.dart';
@@ -13,8 +14,16 @@ class BookRepository {
 
   Future<MatchBook> book(GameMatch match, BookKind kind) async {
     final slug = match.game.slug;
-    final body = await _api.get('/soda/$slug/${match.id}/${slug}_${kind.suffix}/');
-    return MatchBook.fromJson(asMap(body));
+    final body = asMap(
+      await _api.get('/soda/$slug/${match.id}/${slug}_${kind.suffix}/'),
+    );
+
+    // The soda book is the only one that answers with the bets themselves
+    // rather than a line per party - the same endpoint the board reads. Each
+    // bet becomes a row so the tab reads like the other three.
+    if (kind == BookKind.soda) return MatchBook.fromSodaJson(body);
+
+    return MatchBook.fromJson(body);
   }
 
   /// Every bet one party has on this match.
@@ -42,8 +51,12 @@ class BookRepository {
   /// Whether [match] supports the per-party drill-down at all.
   static bool supportsPartySoda(GameMatch match) => match.game != GameType.test;
 
-  /// A party's statement, newest first.
-  Future<List<LedgerRow>> ledger({
+  /// A party's statement, oldest first, with the balance it closes at.
+  ///
+  /// The reply is an object - the lines sit under `entries` alongside the
+  /// party's own balance - not the bare list the generic reader expects, so it
+  /// is unpacked by hand here.
+  Future<PartyStatement> ledger({
     required int partyId,
     DateTime? from,
     DateTime? to,
@@ -52,7 +65,19 @@ class BookRepository {
       if (from != null) 'from_date': _apiDate(from),
       if (to != null) 'to_date': _apiDate(to),
     });
-    return asList(body).map(LedgerRow.fromJson).toList();
+
+    final data = asMap(body);
+    final raw = data['entries'];
+
+    return PartyStatement(
+      rows: raw is! List
+          ? const []
+          : raw
+              .whereType<Map>()
+              .map((e) => LedgerRow.fromJson(Map<String, dynamic>.from(e)))
+              .toList(),
+      balance: Money.toDouble(data['balance'] ?? data['final_closing_balance']),
+    );
   }
 
   /// Removes the record a statement line was rendered from.

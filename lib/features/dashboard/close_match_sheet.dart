@@ -461,7 +461,7 @@ class _Column extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      Money.format(line.amount, decimals: 0),
+                      Money.format(line.amount),
                       style: const TextStyle(
                         fontFamily: 'Roboto Mono',
                         fontSize: 11.5,
@@ -480,7 +480,7 @@ class _Column extends StatelessWidget {
             children: [
               Expanded(child: Text('TOTAL', style: context.text.labelSmall)),
               Text(
-                Money.format(total, decimals: 0),
+                Money.format(total),
                 style: TextStyle(
                   fontFamily: 'Roboto Mono',
                   fontSize: 13,

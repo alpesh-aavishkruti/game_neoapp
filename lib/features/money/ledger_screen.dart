@@ -12,23 +12,39 @@ import '../../data/repositories/book_repository.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../matches/match_providers.dart';
+import 'havala_entry_sheet.dart';
 
 final bookRepositoryProvider = Provider<BookRepository>(
   (ref) => BookRepository(ref.watch(apiClientProvider)),
 );
 
 final ledgerProvider =
-    FutureProvider.family<List<LedgerRow>, int>((ref, partyId) async {
+    FutureProvider.family<PartyStatement, int>((ref, partyId) async {
   return ref.watch(bookRepositoryProvider).ledger(partyId: partyId);
 });
 
-/// A party's statement.
+/// Set on each dropdown item rather than on the field. A style handed to the
+/// field replaces the theme's, colour and all, and the selected value comes
+/// out unpainted.
+const _filterText = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600);
+
+/// Which rows the check column is being used to pick out.
+enum _Shown {
+  all('All'),
+  checked('Check'),
+  unchecked('Uncheck');
+
+  const _Shown(this.label);
+  final String label;
+}
+
+/// A party's statement - the desk's VIEW PARTY.
 ///
-/// A desk ledger is a wide table - date, particulars, debit, credit, balance.
-/// That is unreadable squeezed onto a phone, so each entry becomes a line:
-/// date at the left, what happened in the middle, the amount and the running
-/// balance at the right. Closing balance sits at the top, because that is the
-/// number anyone opens a ledger to find.
+/// A desk ledger is a wide table: date, particulars, credit, debit, balance,
+/// voucher, who entered it. That is unreadable squeezed onto a phone, so each
+/// entry becomes a block - date at the left, what happened in the middle, the
+/// two figures at the right. The balance sits above the list, because it is
+/// the number anyone opens a ledger to find.
 class LedgerScreen extends ConsumerStatefulWidget {
   const LedgerScreen({super.key, this.party, this.embedded = false});
 
@@ -46,28 +62,50 @@ class LedgerScreen extends ConsumerStatefulWidget {
 class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   Party? _party;
 
+  final _description = TextEditingController();
+
+  DateTime? _from;
+  DateTime? _to;
+
+  /// Once the operator picks a range it is theirs, and switching party must
+  /// not quietly move it back to the last seven days.
+  bool _ownDates = false;
+
+  String _vchType = 'All';
+  _Shown _shown = _Shown.all;
+
+  /// Ticked off while reconciling. Session-only, like the desk's own column.
+  final _checked = <int>{};
+
   @override
   void initState() {
     super.initState();
     _party = widget.party;
   }
 
+  @override
+  void dispose() {
+    _description.dispose();
+    super.dispose();
+  }
+
   Future<void> _share() async {
     final party = _party;
     if (party == null) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Preparing the statement…')),
-    );
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(content: Text('Preparing the statement…')));
     try {
       await ref.read(reportSharingProvider).sharePdf(
             path: '/master/parties/${party.id}/download_party_report/',
             name: 'Ledger ${party.code}',
+            query: {
+              if (_from != null) 'from_date': AppTime.apiDate(_from!),
+              if (_to != null) 'to_date': AppTime.apiDate(_to!),
+            },
           );
     } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      }
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -81,7 +119,102 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
       useSafeArea: true,
       builder: (_) => _PartyPicker(parties: parties),
     );
-    if (chosen != null) setState(() => _party = chosen);
+    if (chosen != null) _open(chosen);
+  }
+
+  void _open(Party party) => setState(() {
+        _party = party;
+        _checked.clear();
+        if (!_ownDates) {
+          _from = null;
+          _to = null;
+        }
+      });
+
+  /// Follows the party code a line names into that party's own statement.
+  ///
+  /// The desk's JUMP: a settlement line says who it was against, and the next
+  /// question is always what that side's book looks like.
+  Future<void> _jump(String code) async {
+    final parties = await ref.read(partiesProvider.future);
+    if (!mounted) return;
+    final target = parties.where((p) => p.code.toUpperCase() == code).firstOrNull;
+    if (target == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('No party with code $code')));
+      return;
+    }
+    _open(target);
+  }
+
+  Future<void> _pickRange() async {
+    final now = AppTime.today;
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 3),
+      lastDate: DateTime(now.year + 2),
+      initialDateRange: _from != null && _to != null
+          ? DateTimeRange(start: _from!, end: _to!)
+          : null,
+    );
+    if (picked != null) {
+      setState(() {
+        _from = picked.start;
+        _to = picked.end;
+        _ownDates = true;
+      });
+    }
+  }
+
+  void _clear() => setState(() {
+        _description.clear();
+        _vchType = 'All';
+        _shown = _Shown.all;
+        _from = null;
+        _to = null;
+        _ownDates = false;
+        _checked.clear();
+      });
+
+  /// The week ending at the newest entry, which is what the desk opens on.
+  ///
+  /// A statement can run for years; showing all of it by default means
+  /// scrolling to the bottom before reading anything useful.
+  ({DateTime from, DateTime to})? _defaultRange(List<LedgerRow> rows) {
+    final dated = rows.map((r) => r.date).whereType<DateTime>().toList();
+    if (dated.isEmpty) return null;
+    final latest = dated.reduce((a, b) => a.isAfter(b) ? a : b);
+    return (from: latest.subtract(const Duration(days: 7)), to: latest);
+  }
+
+  List<LedgerRow> _apply(List<LedgerRow> rows, DateTime? from, DateTime? to) {
+    final term = _description.text.trim().toLowerCase();
+
+    return [
+      for (final row in rows)
+        if (_keep(row, term, from, to)) row,
+    ];
+  }
+
+  bool _keep(LedgerRow row, String term, DateTime? from, DateTime? to) {
+    if (term.isNotEmpty && !row.description.toLowerCase().contains(term)) {
+      return false;
+    }
+    if (_vchType != 'All' && row.voucherType != _vchType) return false;
+
+    final on = _checked.contains(row.id);
+    if (_shown == _Shown.checked && !on) return false;
+    if (_shown == _Shown.unchecked && on) return false;
+
+    final at = row.date;
+    if (from != null && to != null && at != null) {
+      final day = DateTime(at.year, at.month, at.day);
+      if (day.isBefore(DateTime(from.year, from.month, from.day)) ||
+          day.isAfter(DateTime(to.year, to.month, to.day))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @override
@@ -90,12 +223,17 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
 
     final body = party == null
         ? _ChooseFirst(onChoose: _pickParty)
-        : _Statement(party: party);
+        : _statement(party);
 
     if (widget.embedded) {
       return Column(
         children: [
-          _PartyBar(party: party, onChoose: _pickParty, onShare: party == null ? null : _share),
+          _PartyBar(
+            party: party,
+            onChoose: _pickParty,
+            onShare: party == null ? null : _share,
+            onAddHavala: party == null ? null : _addHavala,
+          ),
           Expanded(child: body),
         ],
       );
@@ -106,7 +244,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Ledger'),
+            const Text('View party'),
             if (party != null)
               Text(
                 party.display,
@@ -117,12 +255,18 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
           ],
         ),
         actions: [
-          if (party != null)
+          if (party != null) ...[
+            IconButton(
+              icon: const Icon(Icons.add_card_outlined),
+              tooltip: 'Add havala',
+              onPressed: _addHavala,
+            ),
             IconButton(
               icon: const Icon(Icons.ios_share),
               tooltip: 'Share as PDF',
               onPressed: _share,
             ),
+          ],
           IconButton(
             icon: const Icon(Icons.person_search_outlined),
             tooltip: 'Choose party',
@@ -133,52 +277,494 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
       body: body,
     );
   }
+
+  Future<void> _addHavala() async {
+    final saved = await HavalaEntrySheet.show(context);
+    final party = _party;
+    if (saved == true && party != null) ref.invalidate(ledgerProvider(party.id));
+  }
+
+  Widget _statement(Party party) {
+    final statement = ref.watch(ledgerProvider(party.id));
+
+    return RefreshIndicator(
+      onRefresh: () => ref.refresh(ledgerProvider(party.id).future),
+      child: AsyncView(
+        value: statement,
+        onRetry: () => ref.invalidate(ledgerProvider(party.id)),
+        isEmpty: (data) => data.rows.isEmpty,
+        emptyTitle: 'Nothing on this statement',
+        emptyMessage: 'Entries appear here as matches settle and havalas are raised.',
+        builder: (data) {
+          // A range the operator has not set follows the data; one they have
+          // set is left exactly where they put it.
+          final fallback = _ownDates ? null : _defaultRange(data.rows);
+          final from = _ownDates ? _from : fallback?.from;
+          final to = _ownDates ? _to : fallback?.to;
+
+          final shown = _apply(data.rows, from, to);
+
+          final types = <String>{
+            for (final row in data.rows)
+              if (row.voucherType.isNotEmpty) row.voucherType,
+          }.toList()
+            ..sort();
+
+          final credit = shown.fold<double>(0, (s, r) => s + r.credit);
+          final debit = shown.fold<double>(0, (s, r) => s + r.debit.abs());
+          final ticked = shown
+              .where((r) => _checked.contains(r.id))
+              .fold<double>(0, (s, r) => s + r.movement);
+
+          return Column(
+            children: [
+              _LedgerFilters(
+                from: from,
+                to: to,
+                onPickRange: _pickRange,
+                description: _description,
+                onDescriptionChanged: () => setState(() {}),
+                types: types,
+                vchType: _vchType,
+                onType: (v) => setState(() => _vchType = v),
+                shown: _shown,
+                onShown: (v) => setState(() => _shown = v),
+                allChecked: shown.isNotEmpty &&
+                    shown.every((r) => _checked.contains(r.id)),
+                onCheckAll: (on) => setState(() {
+                  for (final row in shown) {
+                    on ? _checked.add(row.id) : _checked.remove(row.id);
+                  }
+                }),
+                onClear: _clear,
+                balance: data.balance,
+                count: shown.length,
+                total: data.rows.length,
+              ),
+              Expanded(
+                child: shown.isEmpty
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.all(28),
+                          child: Text(
+                            'No entries in this range',
+                            style: context.text.bodyMedium,
+                          ),
+                        ),
+                      )
+                    : ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(bottom: 12),
+                        itemCount: shown.length,
+                        itemBuilder: (context, i) {
+                          // Newest first: the last thing entered is the thing
+                          // most often being checked.
+                          final row = shown[shown.length - 1 - i];
+                          return _LedgerLine(
+                            row: row,
+                            isChecked: _checked.contains(row.id),
+                            onToggle: () => setState(() {
+                              _checked.contains(row.id)
+                                  ? _checked.remove(row.id)
+                                  : _checked.add(row.id);
+                            }),
+                            onJump: _jumpCode(row) == null
+                                ? null
+                                : () => _jump(_jumpCode(row)!),
+                            // Only lines that came out of a book can go back
+                            // into it; a settlement line has no record to
+                            // remove.
+                            onDelete: row.canDelete
+                                ? () => _deleteRow(context, ref, row, party.id)
+                                : null,
+                          );
+                        },
+                      ),
+              ),
+              _Totals(credit: credit, debit: debit, ticked: ticked),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  /// The party code a line names, when it names one this book knows.
+  String? _jumpCode(LedgerRow row) {
+    final source = row.ptrnSourceCode;
+    if (source != null && source.isNotEmpty) return source;
+
+    // The desk reads the leading token of the description; it is a code on a
+    // havala line and a match number on a settlement, so it is only offered
+    // when it actually resolves.
+    final match = RegExp(r'^[\w\d]+').firstMatch(row.description);
+    final token = match?.group(0)?.toUpperCase();
+    if (token == null || token.isEmpty) return null;
+
+    final parties = ref.read(partiesProvider).value ?? const <Party>[];
+    return parties.any((p) => p.code.toUpperCase() == token) ? token : null;
+  }
+}
+
+/// The desk's filter row, folded onto a phone.
+class _LedgerFilters extends StatefulWidget {
+  const _LedgerFilters({
+    required this.from,
+    required this.to,
+    required this.onPickRange,
+    required this.description,
+    required this.onDescriptionChanged,
+    required this.types,
+    required this.vchType,
+    required this.onType,
+    required this.shown,
+    required this.onShown,
+    required this.allChecked,
+    required this.onCheckAll,
+    required this.onClear,
+    required this.balance,
+    required this.count,
+    required this.total,
+  });
+
+  final DateTime? from;
+  final DateTime? to;
+  final VoidCallback onPickRange;
+  final TextEditingController description;
+  final VoidCallback onDescriptionChanged;
+  final List<String> types;
+  final String vchType;
+  final ValueChanged<String> onType;
+  final _Shown shown;
+  final ValueChanged<_Shown> onShown;
+  final bool allChecked;
+  final ValueChanged<bool> onCheckAll;
+  final VoidCallback onClear;
+  final double balance;
+  final int count;
+  final int total;
+
+  @override
+  State<_LedgerFilters> createState() => _LedgerFiltersState();
+}
+
+class _LedgerFiltersState extends State<_LedgerFilters> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = context.book;
+    final extras = (widget.vchType != 'All' ? 1 : 0) +
+        (widget.shown != _Shown.all ? 1 : 0) +
+        (widget.description.text.trim().isEmpty ? 0 : 1);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.scheme.surface,
+        border: Border(bottom: BorderSide(color: book.line)),
+      ),
+      padding: const EdgeInsets.fromLTRB(12, 4, 8, 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppTheme.rField),
+                  onTap: widget.onPickRange,
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTheme.rField),
+                      border: Border.all(color: book.line),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.date_range_outlined, size: 14, color: book.muted),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            widget.from == null || widget.to == null
+                                ? 'All dates'
+                                : '${AppTime.date(widget.from)} → ${AppTime.date(widget.to)}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontFamily: 'Roboto Mono',
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'More filters',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => _open = !_open),
+                icon: Badge(
+                  isLabelVisible: extras > 0,
+                  label: Text('$extras'),
+                  child: Icon(_open ? Icons.tune : Icons.tune_outlined, size: 20),
+                ),
+              ),
+              Tooltip(
+                message: 'Check all',
+                child: Checkbox(
+                  visualDensity: VisualDensity.compact,
+                  value: widget.allChecked,
+                  onChanged: (v) => widget.onCheckAll(v == true),
+                ),
+              ),
+            ],
+          ),
+          if (_open) ...[
+            SizedBox(
+              height: 38,
+              child: TextField(
+                controller: widget.description,
+                onChanged: (_) => widget.onDescriptionChanged(),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: 'Search remarks…',
+                  prefixIcon: const Icon(Icons.search, size: 18),
+                  suffixIcon: widget.description.text.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close, size: 16),
+                          onPressed: () {
+                            widget.description.clear();
+                            widget.onDescriptionChanged();
+                          },
+                        ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: widget.vchType,
+                    isExpanded: true,
+                    decoration: const InputDecoration(isDense: true),
+                    items: [
+                      const DropdownMenuItem(
+                        value: 'All',
+                        child: Text('All types', style: _filterText),
+                      ),
+                      for (final type in widget.types)
+                        DropdownMenuItem(
+                          value: type,
+                          child: Text(type, style: _filterText),
+                        ),
+                    ],
+                    onChanged: (v) => widget.onType(v ?? 'All'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: DropdownButtonFormField<_Shown>(
+                    initialValue: widget.shown,
+                    isExpanded: true,
+                    decoration: const InputDecoration(isDense: true),
+                    items: [
+                      for (final option in _Shown.values)
+                        DropdownMenuItem(
+                          value: option,
+                          child: Text(option.label, style: _filterText),
+                        ),
+                    ],
+                    onChanged: (v) => widget.onShown(v ?? _Shown.all),
+                  ),
+                ),
+                TextButton(onPressed: widget.onClear, child: const Text('Clear')),
+              ],
+            ),
+          ],
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Text(
+                widget.count == widget.total
+                    ? '${widget.total} entries'
+                    : '${widget.count} of ${widget.total}',
+                style: context.text.labelSmall,
+              ),
+              const Spacer(),
+              Text('BALANCE', style: context.text.labelSmall),
+              const SizedBox(width: 6),
+              Text(
+                Money.format(widget.balance),
+                style: TextStyle(
+                  fontFamily: 'Roboto Mono',
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: book.forAmount(widget.balance),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The figures for whatever the filters have left on screen.
+class _Totals extends StatelessWidget {
+  const _Totals({required this.credit, required this.debit, required this.ticked});
+
+  final double credit;
+  final double debit;
+  final double ticked;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = context.book;
+    final net = credit - debit;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.scheme.surface,
+        border: Border(top: BorderSide(color: book.line)),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 7, 14, 9),
+      child: Row(
+        children: [
+          Expanded(child: _Total(label: 'CR (LENA)', value: credit, tone: book.up)),
+          Expanded(child: _Total(label: 'DR (DENA)', value: debit, tone: book.down)),
+          Expanded(
+            child: _Total(
+              label: 'NET',
+              value: net,
+              tone: book.forAmount(net),
+              signed: true,
+            ),
+          ),
+          Expanded(
+            child: _Total(
+              label: 'CHECKED',
+              value: ticked,
+              tone: book.forAmount(ticked),
+              signed: true,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Total extends StatelessWidget {
+  const _Total({
+    required this.label,
+    required this.value,
+    required this.tone,
+    this.signed = false,
+  });
+
+  final String label;
+  final double value;
+  final Color tone;
+  final bool signed;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label, style: context.text.labelSmall?.copyWith(fontSize: 8.5)),
+          const SizedBox(height: 1),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              signed ? Money.position(value) : Money.format(value),
+              style: TextStyle(
+                fontFamily: 'Roboto Mono',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: tone,
+              ),
+            ),
+          ),
+        ],
+      );
 }
 
 /// Names the party being read, and lets it be swapped, when the screen has no
 /// app bar of its own to carry that.
 class _PartyBar extends StatelessWidget {
-  const _PartyBar({required this.party, required this.onChoose, this.onShare});
+  const _PartyBar({
+    required this.party,
+    required this.onChoose,
+    this.onShare,
+    this.onAddHavala,
+  });
 
   final Party? party;
   final VoidCallback onChoose;
   final VoidCallback? onShare;
+  final VoidCallback? onAddHavala;
 
   @override
-  Widget build(BuildContext context) => InkWell(
-        onTap: onChoose,
-        child: Container(
-          margin: const EdgeInsets.fromLTRB(14, 6, 14, 10),
-          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
-          decoration: BoxDecoration(
-            color: context.scheme.surface,
-            borderRadius: BorderRadius.circular(AppTheme.rField),
-            border: Border.all(color: context.book.line),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  party?.display ?? 'Choose a party',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: party == null ? FontWeight.w400 : FontWeight.w600,
-                    color: party == null ? context.book.muted : context.scheme.onSurface,
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 4, 8, 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppTheme.rField),
+                onTap: onChoose,
+                child: Container(
+                  height: 38,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(AppTheme.rField),
+                    border: Border.all(color: context.book.line),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          party?.display ?? 'Choose a client',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: party == null ? FontWeight.w400 : FontWeight.w600,
+                            color: party == null
+                                ? context.book.muted
+                                : context.scheme.onSurface,
+                          ),
+                        ),
+                      ),
+                      Icon(Icons.expand_more, size: 19, color: context.book.muted),
+                    ],
                   ),
                 ),
               ),
-              Icon(Icons.expand_more, size: 20, color: context.book.muted),
-              if (onShare != null)
-                IconButton(
-                  icon: const Icon(Icons.ios_share, size: 18),
-                  tooltip: 'Share as PDF',
-                  visualDensity: VisualDensity.compact,
-                  onPressed: onShare,
-                ),
-            ],
-          ),
+            ),
+            if (onAddHavala != null)
+              IconButton(
+                icon: const Icon(Icons.add_card_outlined, size: 19),
+                tooltip: 'Add havala',
+                visualDensity: VisualDensity.compact,
+                onPressed: onAddHavala,
+              ),
+            if (onShare != null)
+              IconButton(
+                icon: const Icon(Icons.ios_share, size: 18),
+                tooltip: 'Share as PDF',
+                visualDensity: VisualDensity.compact,
+                onPressed: onShare,
+              ),
+          ],
         ),
       );
 }
@@ -197,7 +783,7 @@ class _ChooseFirst extends StatelessWidget {
             children: [
               Icon(Icons.receipt_long_outlined, size: 36, color: context.book.muted),
               const SizedBox(height: 14),
-              Text('Choose a party', style: context.text.titleMedium),
+              Text('Choose a client', style: context.text.titleMedium),
               const SizedBox(height: 6),
               Text(
                 'Pick whose statement to open.',
@@ -205,112 +791,11 @@ class _ChooseFirst extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 18),
-              OutlinedButton(onPressed: onChoose, child: const Text('Choose party')),
+              OutlinedButton(onPressed: onChoose, child: const Text('Choose client')),
             ],
           ),
         ),
       );
-}
-
-class _Statement extends ConsumerWidget {
-  const _Statement({required this.party});
-
-  final Party party;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final ledger = ref.watch(ledgerProvider(party.id));
-
-    return RefreshIndicator(
-      onRefresh: () => ref.refresh(ledgerProvider(party.id).future),
-      child: AsyncView(
-        value: ledger,
-        onRetry: () => ref.invalidate(ledgerProvider(party.id)),
-        isEmpty: (rows) => rows.isEmpty,
-        emptyTitle: 'No entries in this period',
-        builder: (rows) {
-          // The statement is sent oldest first; the closing balance is the
-          // last row's running balance.
-          final closing = rows.isEmpty ? 0.0 : rows.last.closingBalance;
-
-          return Column(
-            children: [
-              _ClosingBalance(amount: closing),
-              Expanded(
-                child: ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.only(bottom: 24),
-                  itemCount: rows.length,
-                  itemBuilder: (context, i) {
-                    final row = rows[rows.length - 1 - i];
-                    return _LedgerLine(
-                      row: row,
-                      viewingPartyId: party.id,
-                      // Only lines that came out of a book can go back into
-                      // it; a settlement line has no record to remove.
-                      onDelete: row.canDelete
-                          ? () => _deleteRow(context, ref, row, party.id)
-                          : null,
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ClosingBalance extends StatelessWidget {
-  const _ClosingBalance({required this.amount});
-
-  final double amount;
-
-  @override
-  Widget build(BuildContext context) {
-    final book = context.book;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
-      decoration: BoxDecoration(
-        color: context.scheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.rCard),
-        border: Border.all(color: book.line),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('CLOSING BALANCE', style: context.text.labelSmall),
-                const SizedBox(height: 1),
-                FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    Money.format(amount),
-                    style: TextStyle(
-                      fontFamily: 'Roboto Mono',
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                      color: book.forAmount(amount),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Confirms, then removes the record a statement line came from.
@@ -363,29 +848,43 @@ Future<void> _deleteRow(
 class _LedgerLine extends StatelessWidget {
   const _LedgerLine({
     required this.row,
-    required this.viewingPartyId,
+    required this.isChecked,
+    required this.onToggle,
+    this.onJump,
     this.onDelete,
   });
 
   final LedgerRow row;
-  final int viewingPartyId;
+  final bool isChecked;
+  final VoidCallback onToggle;
+  final VoidCallback? onJump;
   final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
     final book = context.book;
-    final movement = row.movement;
 
-    final line = Container(
+    return Container(
       decoration: BoxDecoration(
+        color: isChecked
+            ? context.scheme.primary.withValues(alpha: 0.06)
+            : Colors.transparent,
         border: Border(bottom: BorderSide(color: book.line)),
       ),
-      padding: const EdgeInsets.fromLTRB(14, 11, 14, 11),
+      padding: const EdgeInsets.fromLTRB(6, 7, 8, 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 38,
+            width: 34,
+            child: Checkbox(
+              visualDensity: VisualDensity.compact,
+              value: isChecked,
+              onChanged: (_) => onToggle(),
+            ),
+          ),
+          SizedBox(
+            width: 36,
             child: Column(
               children: [
                 Text(
@@ -397,13 +896,15 @@ class _LedgerLine extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  row.date == null ? '' : AppTime.dateShort(row.date).split(' ').last.toUpperCase(),
+                  row.date == null
+                      ? ''
+                      : AppTime.dateShort(row.date).split(' ').last.toUpperCase(),
                   style: context.text.labelSmall?.copyWith(fontSize: 9),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 11),
+          const SizedBox(width: 8),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,51 +914,83 @@ class _LedgerLine extends StatelessWidget {
                   row.description,
                   style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
-                const SizedBox(height: 2),
-                Row(
+                const SizedBox(height: 3),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 2,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    if (row.isPartnershipLeg) ...[
+                    if (row.isPartnershipLeg)
                       // A share earned on someone else's book. Marked so it is
                       // never read as this party's own play.
                       StatusChip('PTRN${row.ptrnSlot} · ${row.ptrnSourceCode ?? ''}',
                           tone: ChipTone.open),
-                      const SizedBox(width: 6),
-                    ],
-                    if (row.voucherNo.isNotEmpty)
-                      Text(row.voucherNo, style: context.text.bodySmall?.copyWith(fontSize: 10.5)),
+                    if (row.voucherType.isNotEmpty || row.voucherNo.isNotEmpty)
+                      Text(
+                        '${row.voucherType} ${row.voucherNo}'.trim(),
+                        style: context.text.bodySmall?.copyWith(fontSize: 10.5),
+                      ),
+                    if (row.createdBy.isNotEmpty)
+                      Text(
+                        row.createdBy,
+                        style: context.text.bodySmall?.copyWith(fontSize: 10.5),
+                      ),
+                    if (row.isEdited)
+                      StatusChip('EDITED', tone: ChipTone.open),
                   ],
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                Money.position(movement, decimals: 0),
+                Money.position(row.movement),
                 style: TextStyle(
                   fontFamily: 'Roboto Mono',
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: book.forAmount(movement),
+                  color: book.forAmount(row.movement),
                 ),
               ),
               Text(
-                Money.format(row.closingBalance, decimals: 0),
+                Money.format(row.closingBalance),
                 style: context.text.bodySmall?.copyWith(fontSize: 10.5),
               ),
+              // Shown as buttons rather than hidden behind a swipe: an action
+              // nobody can see is an action nobody uses.
+              if (onJump != null || onDelete != null)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onJump != null)
+                      IconButton(
+                        icon: const Icon(Icons.open_in_new, size: 16),
+                        tooltip: 'Jump to that party',
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(minWidth: 30, minHeight: 26),
+                        padding: EdgeInsets.zero,
+                        onPressed: onJump,
+                      ),
+                    if (onDelete != null)
+                      IconButton(
+                        icon: Icon(Icons.delete_outline, size: 16, color: book.down),
+                        tooltip: 'Delete entry',
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(minWidth: 30, minHeight: 26),
+                        padding: EdgeInsets.zero,
+                        onPressed: onDelete,
+                      ),
+                  ],
+                ),
             ],
           ),
         ],
       ),
     );
-
-    if (onDelete == null) return line;
-    // Held rather than swiped: a statement is scrolled constantly and a swipe
-    // here would delete money by accident.
-    return InkWell(onLongPress: onDelete, child: line);
   }
 }
 

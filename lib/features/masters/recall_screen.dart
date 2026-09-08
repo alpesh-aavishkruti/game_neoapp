@@ -25,6 +25,60 @@ class RecallScreen extends ConsumerStatefulWidget {
 class _RecallScreenState extends ConsumerState<RecallScreen> {
   int? _busyId;
 
+  /// Removes the match or cup itself.
+  ///
+  /// Recalling reopens a result; this takes the whole game away, along with
+  /// every entry on it - so it is named plainly and asked for separately.
+  final _search = TextEditingController();
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<void> _delete(GameMatch match) async {
+    // Taken before the dialog: after it, this context may be gone.
+    final messenger = ScaffoldMessenger.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Delete ${match.title}?'),
+        content: const Text(
+          'The game and every entry on it go to the recycle bin.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _busyId = match.id);
+    try {
+      await ref.read(masterRepositoryProvider).deleteMatch(match);
+      ref.invalidate(recallableMatchesProvider);
+      for (final game in GameType.values) {
+        ref.invalidate(activeMatchesProvider(game));
+      }
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not delete that game.')),
+      );
+    } finally {
+      if (mounted) setState(() => _busyId = null);
+    }
+  }
+
   Future<void> _recall(GameMatch match) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -60,7 +114,7 @@ class _RecallScreenState extends ConsumerState<RecallScreen> {
         await repo.recallMatch(match.id);
       }
 
-      ref.invalidate(closedMatchesProvider);
+      ref.invalidate(recallableMatchesProvider);
       // The match is open again, so the lists that only show open matches
       // have to be told.
       for (final game in GameType.values) {
@@ -81,7 +135,8 @@ class _RecallScreenState extends ConsumerState<RecallScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final matches = ref.watch(closedMatchesProvider);
+    final matches = ref.watch(recallableMatchesProvider);
+    final term = _search.text.trim().toLowerCase();
 
     return Scaffold(
       appBar: AppBar(
@@ -90,45 +145,104 @@ class _RecallScreenState extends ConsumerState<RecallScreen> {
           children: [
             const Text('Recall entry'),
             Text(
-              'Closed matches and cups',
+              'Matches and cups',
               style: context.text.bodySmall?.copyWith(fontSize: 11),
             ),
           ],
         ),
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.refresh(closedMatchesProvider.future),
+        onRefresh: () => ref.refresh(recallableMatchesProvider.future),
         child: AsyncView(
           value: matches,
-          onRetry: () => ref.invalidate(closedMatchesProvider),
+          onRetry: () => ref.invalidate(recallableMatchesProvider),
           isEmpty: (list) => list.isEmpty,
           emptyTitle: 'Nothing closed yet',
           emptyMessage: 'Matches you settle will appear here.',
-          builder: (list) => ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: list.length,
-            itemBuilder: (context, i) => _ClosedMatchRow(
-              match: list[i],
-              busy: _busyId == list[i].id,
-              onRecall: () => _recall(list[i]),
-            ),
-          ),
+          builder: (list) {
+            final shown = [
+              for (final m in list)
+                if (term.isEmpty ||
+                    '${m.title} ${m.game.label} ${m.winNation ?? ''}'
+                        .toLowerCase()
+                        .contains(term))
+                  m,
+            ];
+
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                  child: TextField(
+                    controller: _search,
+                    onChanged: (_) => setState(() {}),
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Search a match or cup',
+                      prefixIcon: const Icon(Icons.search, size: 19),
+                      suffixIcon: term.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => setState(_search.clear),
+                            ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      term.isEmpty
+                          ? '${list.length} records'
+                          : '${shown.length} of ${list.length}',
+                      style: context.text.labelSmall,
+                    ),
+                  ),
+                ),
+                if (shown.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: Text('Nothing matches that',
+                          style: context.text.bodyMedium),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: shown.length,
+                      itemBuilder: (context, i) => _RecallRow(
+                        match: shown[i],
+                        busy: _busyId == shown[i].id,
+                        onRecall: () => _recall(shown[i]),
+                        onDelete: () => _delete(shown[i]),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
   }
 }
 
-class _ClosedMatchRow extends StatelessWidget {
-  const _ClosedMatchRow({
+class _RecallRow extends StatelessWidget {
+  const _RecallRow({
     required this.match,
     required this.busy,
     required this.onRecall,
+    required this.onDelete,
   });
 
   final GameMatch match;
   final bool busy;
   final VoidCallback onRecall;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -158,8 +272,12 @@ class _ClosedMatchRow extends StatelessWidget {
                 const SizedBox(height: 1),
                 Text(
                   [
-                    if (match.winNation?.isNotEmpty == true) 'Won by ${match.winNation}',
+                    if (!match.isSettled)
+                      'Open'
+                    else if (match.winNation?.isNotEmpty == true)
+                      'Won by ${match.winNation}',
                     if (match.closeDate != null) 'closed ${AppTime.date(match.closeDate)}',
+                    if (match.isSettled && match.closeDate == null) 'settled',
                   ].join(' · '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -186,6 +304,12 @@ class _ClosedMatchRow extends StatelessWidget {
               ),
               child: const Text('Recall', style: TextStyle(fontSize: 12)),
             ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline, size: 20),
+            color: book.muted,
+            tooltip: 'Delete',
+            onPressed: busy ? null : onDelete,
+          ),
         ],
       ),
     );

@@ -7,6 +7,7 @@ class GeneralLine {
     required this.code,
     required this.name,
     required this.amount,
+    this.categoryId,
   });
 
   final int partyId;
@@ -14,11 +15,16 @@ class GeneralLine {
   final String name;
   final double amount;
 
+  /// Which category the party sits under, so the screen can be narrowed to one
+  /// class of client the way the desk narrows it.
+  final int? categoryId;
+
   factory GeneralLine.fromJson(Map<String, dynamic> json) => GeneralLine(
         partyId: int.tryParse('${json['party_id']}') ?? 0,
         code: (json['party_code'] ?? '').toString().trim().toUpperCase(),
         name: (json['party_name'] ?? '').toString().trim(),
         amount: Money.toDouble(json['amount']),
+        categoryId: int.tryParse('${json['category_id']}'),
       );
 
   String get display => (name.isEmpty || name.toUpperCase() == code) ? code : '$code — $name';

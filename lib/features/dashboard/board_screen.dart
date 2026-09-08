@@ -265,6 +265,9 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
               EntryHeader(
                 subjectLabel:
                     match.game == GameType.session ? 'Run / client' : 'Nation / client',
+                // A settled board takes no more changes, so its rows carry no
+                // buttons and the heading reclaims the room.
+                hasActions: !match.isSettled,
               ),
               Expanded(
                 child: data.entries.isEmpty

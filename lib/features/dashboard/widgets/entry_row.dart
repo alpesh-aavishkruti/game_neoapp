@@ -25,6 +25,9 @@ class EntryRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final book = context.book;
+
+    // A Bombay leg settles elsewhere and is never edited from the board.
+    final canAct = !entry.isBombay && (onEdit != null || onDelete != null);
     final tone = entry.isEdited
         ? book.warn
         : entry.isBombay
@@ -41,7 +44,7 @@ class EntryRow extends StatelessWidget {
           bottom: BorderSide(color: book.line),
         ),
       ),
-      padding: const EdgeInsets.fromLTRB(14, 9, 14, 9),
+      padding: EdgeInsets.fromLTRB(14, 9, canAct ? 4 : 14, 9),
       child: Row(
         children: [
           SizedBox(
@@ -88,6 +91,8 @@ class EntryRow extends StatelessWidget {
           SizedBox(
             width: 78,
             child: Text(
+              // A stake is always a whole figure and the desk prints it that
+              // way; the rate and the position beside it carry paise.
               Money.format(entry.amount, decimals: 0),
               textAlign: TextAlign.right,
               style: TextStyle(
@@ -110,12 +115,26 @@ class EntryRow extends StatelessWidget {
               ),
             ),
           ),
+          if (canAct) ...[
+            const SizedBox(width: 2),
+            _RowAction(
+              icon: Icons.edit_outlined,
+              tooltip: 'Edit',
+              colour: context.scheme.primary,
+              onTap: onEdit,
+            ),
+            _RowAction(
+              icon: Icons.delete_outline,
+              tooltip: 'Delete',
+              colour: book.down,
+              onTap: onDelete,
+            ),
+          ],
         ],
       ),
     );
 
-    // A Bombay leg settles elsewhere and is never edited from the board.
-    if (entry.isBombay || (onEdit == null && onDelete == null)) return row;
+    if (!canAct) return row;
 
     return Dismissible(
       key: ValueKey('entry-${entry.id}'),
@@ -180,14 +199,18 @@ class _SwipeHint extends StatelessWidget {
 
 /// The column headings above the ledger.
 class EntryHeader extends StatelessWidget {
-  const EntryHeader({super.key, required this.subjectLabel});
+  const EntryHeader({super.key, required this.subjectLabel, this.hasActions = true});
 
   /// "Nation / client" on a match board, "Run / client" on a session.
   final String subjectLabel;
 
+  /// Whether the rows below carry edit and delete buttons. The heading has to
+  /// leave the same room or the columns stop lining up with their figures.
+  final bool hasActions;
+
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 0, 14, 6),
+        padding: EdgeInsets.fromLTRB(16, 0, hasActions ? 4 : 14, 6),
         child: Row(
           children: [
             SizedBox(width: 34, child: Text('SR', style: context.text.labelSmall)),
@@ -200,7 +223,41 @@ class EntryHeader extends StatelessWidget {
               width: 52,
               child: Text('RATE', textAlign: TextAlign.right, style: context.text.labelSmall),
             ),
+            if (hasActions) const SizedBox(width: 70),
           ],
+        ),
+      );
+}
+
+/// An action on a bet row.
+///
+/// Small and unlabelled: the row already carries four figures, and on a phone
+/// the words "Edit" and "Delete" would push them off. Swiping still works for
+/// anyone who prefers it - these exist so the operator knows it can be done.
+class _RowAction extends StatelessWidget {
+  const _RowAction({
+    required this.icon,
+    required this.tooltip,
+    required this.colour,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final Color colour;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTheme.rField),
+          onTap: onTap,
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Icon(icon, size: 17, color: onTap == null ? null : colour),
+          ),
         ),
       );
 }

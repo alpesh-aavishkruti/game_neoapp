@@ -88,7 +88,7 @@ class _Cell extends StatelessWidget {
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
-              Money.position(position.profitLoss, decimals: 0),
+              Money.position(position.profitLoss),
               style: TextStyle(
                 fontFamily: 'Roboto Mono',
                 fontSize: compact ? 15 : 21,

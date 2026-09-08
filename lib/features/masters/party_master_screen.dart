@@ -194,7 +194,7 @@ class _PartyRow extends StatelessWidget {
             if (party.balance != null) ...[
               const SizedBox(width: 8),
               Text(
-                Money.position(party.balance, decimals: 0),
+                Money.position(party.balance),
                 style: TextStyle(
                   fontFamily: 'Roboto Mono',
                   fontSize: 12.5,

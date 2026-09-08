@@ -9,16 +9,22 @@ import 'master_providers.dart';
 
 /// One field on a small master form.
 sealed class MasterField {
-  const MasterField({required this.key, required this.label});
+  const MasterField({required this.key, required this.label, this.showIf});
 
   final String key;
   final String label;
+
+  /// Whether this field applies, given what has been chosen so far. A field
+  /// that does not apply is hidden, is not required, and is sent empty - so
+  /// narrowing a choice clears what the wider one had filled in.
+  final bool Function(Map<String, String?> choices)? showIf;
 }
 
 class TextMasterField extends MasterField {
   const TextMasterField({
     required super.key,
     required super.label,
+    super.showIf,
     this.hint,
     this.required = false,
     this.uppercase = false,
@@ -33,6 +39,7 @@ class ChoiceMasterField extends MasterField {
   const ChoiceMasterField({
     required super.key,
     required super.label,
+    super.showIf,
     required this.options,
     this.required = false,
   });
@@ -46,6 +53,7 @@ class NumberMasterField extends MasterField {
   const NumberMasterField({
     required super.key,
     required super.label,
+    super.showIf,
     this.hint,
   });
 
@@ -56,6 +64,7 @@ class SwitchMasterField extends MasterField {
   const SwitchMasterField({
     required super.key,
     required super.label,
+    super.showIf,
     this.initial = false,
   });
 
@@ -74,6 +83,7 @@ class SimpleMasterSheet extends ConsumerStatefulWidget {
     required this.path,
     required this.fields,
     this.editing,
+    this.derive,
   });
 
   final String title;
@@ -81,12 +91,19 @@ class SimpleMasterSheet extends ConsumerStatefulWidget {
   final List<MasterField> fields;
   final Map<String, dynamic>? editing;
 
+  /// A last pass over the payload before it is sent, for a value the server
+  /// needs but nobody should have to type - one that can be worked out from
+  /// what was already filled in, and would quietly break things if it were
+  /// typed wrong.
+  final void Function(Map<String, dynamic> payload)? derive;
+
   static Future<bool?> show(
     BuildContext context, {
     required String title,
     required String path,
     required List<MasterField> fields,
     Map<String, dynamic>? editing,
+    void Function(Map<String, dynamic> payload)? derive,
   }) =>
       showModalBottomSheet<bool>(
         context: context,
@@ -97,6 +114,7 @@ class SimpleMasterSheet extends ConsumerStatefulWidget {
           path: path,
           fields: fields,
           editing: editing,
+          derive: derive,
         ),
       );
 
@@ -128,10 +146,16 @@ class _SimpleMasterSheetState extends ConsumerState<SimpleMasterSheet> {
           final current = (row?[field.key] ?? '').toString();
           _choice[field.key] = options.containsKey(current) ? current : null;
         case SwitchMasterField(:final initial):
-          _flags[field.key] = row == null ? initial : row[field.key] == true;
+          // A stored row that carries no value for this switch is not off - it
+          // simply predates the flag, so it falls back to the declared default.
+          // Reading it as off would turn it off the next time the row is saved.
+          _flags[field.key] =
+              row?[field.key] == null ? initial : row![field.key] == true;
       }
     }
   }
+
+  bool _applies(MasterField field) => field.showIf?.call(_choice) ?? true;
 
   @override
   void dispose() {
@@ -145,6 +169,7 @@ class _SimpleMasterSheetState extends ConsumerState<SimpleMasterSheet> {
     if (_busy) return;
 
     for (final field in widget.fields) {
+      if (!_applies(field)) continue;
       final missing = switch (field) {
         TextMasterField(:final required) =>
           required && (_text[field.key]?.text.trim().isEmpty ?? true),
@@ -165,6 +190,12 @@ class _SimpleMasterSheetState extends ConsumerState<SimpleMasterSheet> {
     try {
       final payload = <String, dynamic>{};
       for (final field in widget.fields) {
+        if (!_applies(field)) {
+          // Deliberately blank rather than skipped: a team dropped by
+          // narrowing the count has to be cleared, not left behind.
+          payload[field.key] = '';
+          continue;
+        }
         switch (field) {
           case TextMasterField(:final uppercase):
             final value = _text[field.key]!.text.trim();
@@ -178,6 +209,8 @@ class _SimpleMasterSheetState extends ConsumerState<SimpleMasterSheet> {
             payload[field.key] = _flags[field.key];
         }
       }
+
+      widget.derive?.call(payload);
 
       final api = ref.read(apiClientProvider);
       if (_isEditing) {
@@ -227,10 +260,11 @@ class _SimpleMasterSheetState extends ConsumerState<SimpleMasterSheet> {
               ),
               const SizedBox(height: 16),
 
-              for (final field in widget.fields) ...[
-                _fieldWidget(field),
-                const SizedBox(height: 12),
-              ],
+              for (final field in widget.fields)
+                if (_applies(field)) ...[
+                  _fieldWidget(field),
+                  const SizedBox(height: 12),
+                ],
 
               if (_error != null) ...[
                 Text(_error!, style: context.text.bodyMedium?.copyWith(color: book.down)),

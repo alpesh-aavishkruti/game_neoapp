@@ -1,37 +1,37 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:game_app_flutter/core/util/money.dart';
 
-/// Every figure in this app is read against a printed book that uses Indian
-/// digit grouping. Getting the grouping wrong makes an operator re-read the
-/// number, which is exactly what a book on a phone must not cost them.
+/// Every figure in this app is read against the desk system on the screen
+/// beside it. That prints figures ungrouped, so these do too - a separator the
+/// other screen does not have is one more thing to reconcile mid-entry.
 void main() {
-  group('Indian digit grouping', () {
+  group('digits', () {
     test('leaves short numbers alone', () {
       expect(Money.format(0, decimals: 0), '0');
       expect(Money.format(999, decimals: 0), '999');
     });
 
-    test('groups the last three digits, then in pairs', () {
-      expect(Money.format(1234, decimals: 0), '1,234');
-      expect(Money.format(245000, decimals: 0), '2,45,000');
-      expect(Money.format(1123456, decimals: 0), '11,23,456');
-      expect(Money.format(12345678, decimals: 0), '1,23,45,678');
+    test('never groups, however long the figure', () {
+      expect(Money.format(1234, decimals: 0), '1234');
+      expect(Money.format(245000, decimals: 0), '245000');
+      expect(Money.format(1123456, decimals: 0), '1123456');
+      expect(Money.format(12345678, decimals: 0), '12345678');
     });
 
     test('keeps paise when asked', () {
-      expect(Money.format(245000.5), '2,45,000.50');
-      expect(Money.format('1591.80'), '1,591.80');
+      expect(Money.format(245000.5), '245000.50');
+      expect(Money.format('1591.80'), '1591.80');
     });
   });
 
   group('sign', () {
     test('negatives use a real minus sign, not a hyphen', () {
-      expect(Money.format(-112400, decimals: 0), '−1,12,400');
+      expect(Money.format(-112400, decimals: 0), '−112400');
     });
 
     test('a position always declares its direction', () {
-      expect(Money.position(245000, decimals: 0), '+2,45,000');
-      expect(Money.position(-112400, decimals: 0), '−1,12,400');
+      expect(Money.position(245000, decimals: 0), '+245000');
+      expect(Money.position(-112400, decimals: 0), '−112400');
       expect(Money.position(0, decimals: 0), '0');
     });
   });

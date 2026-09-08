@@ -161,7 +161,7 @@ class _Rung extends StatelessWidget {
           ),
           const SizedBox(height: 1),
           Text(
-            Money.position(rung.profitLoss, decimals: 0),
+            Money.position(rung.profitLoss),
             style: TextStyle(
               fontFamily: 'Roboto Mono',
               fontSize: 9.5,
@@ -203,8 +203,8 @@ class _Total extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 signed
-                    ? Money.position(value, decimals: 0)
-                    : Money.format(value, decimals: 0),
+                    ? Money.position(value)
+                    : Money.format(value),
                 style: TextStyle(
                   fontFamily: 'Roboto Mono',
                   fontSize: 15,

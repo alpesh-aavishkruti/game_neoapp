@@ -17,19 +17,36 @@ class MasterRepository {
       asList(await _api.get(path, query: query));
 
   /// Matches that were closed and can be reopened.
-  Future<List<GameMatch>> closedMatches() async {
-    final all = await rows('/master/matches/', query: {'page_size': 200});
-    return all
-        .map(GameMatch.fromJson)
-        .where((m) => m.isSettled)
-        .toList()
-      ..sort((a, b) {
+  /// Everything a result can be taken back off - matches and cups, open or
+  /// settled, the way the desk lists them.
+  ///
+  /// Settled ones are the point of the screen, but an open one is listed too:
+  /// that is what the desk shows, and recalling one simply finds nothing to
+  /// reverse. Cups live at their own path and carry no `game` field, so they
+  /// are fetched separately and stamped.
+  Future<List<GameMatch>> recallableMatches() async {
+    final matches = await rows('/master/matches/', query: {'page_size': 200});
+    final cups = await rows('/master/cups/', query: {'page_size': 200});
+
+    return [
+      ...matches.map(GameMatch.fromJson),
+      ...cups.map((row) => GameMatch.fromJson(row, game: GameType.cup)),
+    ]..sort((a, b) {
+        // Newest first, by when it closed if it did and when it was made if
+        // it has not.
         final left = a.closeDate ?? a.createdAt;
         final right = b.closeDate ?? b.createdAt;
         if (left == null || right == null) return b.id.compareTo(a.id);
         return right.compareTo(left);
       });
   }
+
+  /// Removes a match or cup outright. Each lives at its own path.
+  Future<void> deleteMatch(GameMatch match) => _api.delete(
+        match.game == GameType.cup
+            ? '/master/cups/${match.id}/'
+            : '/master/matches/${match.id}/',
+      );
 
   /// Reopens a settled match. The settlement is reversed in every party
   /// ledger, which is why the screen confirms before calling this.
@@ -38,5 +55,18 @@ class MasterRepository {
 
   Future<void> recallCup(int cupId) => _api.post('/soda/cup/$cupId/recall_cup/');
 
-  Future<void> restoreDeleted(int id) => _api.post('/soda/recycle-bin/$id/restore/');
+  /// The bin's three actions.
+  ///
+  /// All of them are list-level and name the record in the body - the bin
+  /// holds several kinds of voucher, so an id alone does not say which table
+  /// to look in.
+  Future<void> restoreDeleted({required String recordType, required int id}) =>
+      _api.post('/soda/recycle-bin/restore/',
+          data: {'record_type': recordType, 'id': id});
+
+  Future<void> permanentlyDelete({required String recordType, required int id}) =>
+      _api.post('/soda/recycle-bin/permanent-delete/',
+          data: {'record_type': recordType, 'id': id});
+
+  Future<void> emptyRecycleBin() => _api.post('/soda/recycle-bin/empty/');
 }

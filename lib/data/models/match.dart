@@ -175,5 +175,12 @@ class GameMatch {
         _ => [nationA, nationB],
       };
 
+  /// The columns the books carry for this match.
+  ///
+  /// A session is not bet on sides - it is bet on run figures, taken either
+  /// way - so its books are ruled K and L. Everything else is ruled by team.
+  List<String> get bookColumns =>
+      game == GameType.session ? const ['K', 'L'] : selectableNations;
+
   bool get isSettled => !isActive;
 }

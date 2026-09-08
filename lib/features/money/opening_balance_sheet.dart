@@ -427,8 +427,8 @@ class _Balance extends StatelessWidget {
           Expanded(
             child: Text(
               balances
-                  ? 'Balanced at ${Money.format(debit, decimals: 0)}'
-                  : 'Dr ${Money.format(debit, decimals: 0)} · Cr ${Money.format(credit, decimals: 0)} — off by ${Money.format((debit - credit).abs(), decimals: 0)}',
+                  ? 'Balanced at ${Money.format(debit)}'
+                  : 'Dr ${Money.format(debit)} · Cr ${Money.format(credit)} — off by ${Money.format((debit - credit).abs())}',
               style: TextStyle(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,

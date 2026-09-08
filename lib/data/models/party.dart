@@ -11,6 +11,7 @@ class Party {
     this.balance,
     this.isBookie = false,
     this.isActive = true,
+    this.refMemberId,
   });
 
   final int id;
@@ -26,6 +27,10 @@ class Party {
   final bool isBookie;
   final bool isActive;
 
+  /// Who introduced this party. A report is often run for one agent's whole
+  /// book, and this is the only thing that says which clients those are.
+  final int? refMemberId;
+
   factory Party.fromJson(Map<String, dynamic> json) => Party(
         id: int.tryParse('${json['id']}') ?? 0,
         code: (json['party_code'] ?? '').toString().trim().toUpperCase(),
@@ -40,6 +45,7 @@ class Party {
         balance: json['balance'] == null ? null : Money.toDouble(json['balance']),
         isBookie: json['is_bookie'] == true,
         isActive: json['is_active'] != false,
+        refMemberId: int.tryParse('${json['ref_member']}'),
       );
 
   /// Category arrives as a many-to-many list, not a single object - and older

@@ -36,7 +36,10 @@ class PartyBookScreen extends ConsumerStatefulWidget {
 
 class _PartyBookScreenState extends ConsumerState<PartyBookScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: BookKind.values.length, vsync: this);
+  /// Only the books this match actually keeps, so no tab can open onto an
+  /// endpoint that does not exist.
+  late final List<BookKind> _kinds = BookKind.forGame(widget.match.game);
+  late final TabController _tabs = TabController(length: _kinds.length, vsync: this);
 
   @override
   void dispose() {
@@ -95,7 +98,7 @@ class _PartyBookScreenState extends ConsumerState<PartyBookScreen>
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.2,
               ),
-              tabs: [for (final kind in BookKind.values) Tab(text: kind.label.toUpperCase())],
+              tabs: [for (final kind in _kinds) Tab(text: kind.label.toUpperCase())],
             ),
           ),
         ),
@@ -103,7 +106,7 @@ class _PartyBookScreenState extends ConsumerState<PartyBookScreen>
       body: TabBarView(
         controller: _tabs,
         children: [
-          for (final kind in BookKind.values)
+          for (final kind in _kinds)
             _BookTable(match: widget.match, kind: kind),
         ],
       ),
@@ -121,7 +124,7 @@ class _BookTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final args = (match: match, kind: kind);
     final book = ref.watch(matchBookProvider(args));
-    final sides = match.selectableNations;
+    final sides = match.bookColumns;
 
     return RefreshIndicator(
       onRefresh: () => ref.refresh(matchBookProvider(args).future),
@@ -227,7 +230,7 @@ class _BookLine extends StatelessWidget {
             SizedBox(
               width: 72,
               child: Text(
-                i < row.figures.length ? Money.format(row.figures[i], decimals: 0) : '-',
+                i < row.figures.length ? Money.format(row.figures[i]) : '-',
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   fontFamily: 'Roboto Mono',
@@ -281,7 +284,7 @@ class _BookTotals extends StatelessWidget {
             SizedBox(
               width: 72,
               child: Text(
-                i < totals.length ? Money.format(totals[i], decimals: 0) : '-',
+                i < totals.length ? Money.format(totals[i]) : '-',
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   fontFamily: 'Roboto Mono',

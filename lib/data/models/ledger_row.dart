@@ -20,6 +20,7 @@ class LedgerRow {
     this.daybookCode = '',
     this.originalId,
     this.voucherId,
+    this.createdBy = '',
   });
 
   final int id;
@@ -51,6 +52,10 @@ class LedgerRow {
   final int? originalId;
   final int? voucherId;
 
+  /// Who wrote the entry. Shown so a queried figure can be taken to the person
+  /// who entered it rather than guessed at.
+  final String createdBy;
+
   factory LedgerRow.fromJson(Map<String, dynamic> json) => LedgerRow(
         id: int.tryParse('${json['id']}') ?? 0,
         // The server sends this already rendered in the caller's timezone.
@@ -71,6 +76,7 @@ class LedgerRow {
         daybookCode: (json['daybook_code'] ?? '').toString().trim(),
         originalId: int.tryParse('${json['original_id']}'),
         voucherId: int.tryParse('${json['voucher_id']}'),
+        createdBy: (json['created_by'] ?? '').toString().trim().toUpperCase(),
       );
 
   /// `dd-MM-yyyy`, which is how the backend writes the voucher date.
@@ -88,8 +94,13 @@ class LedgerRow {
   /// A share earned on someone else's book rather than this party's own play.
   bool get isPartnershipLeg => ptrnSlot != null && ptrnSourceId != null;
 
-  /// Positive means money owed to the party.
-  double get movement => credit - debit;
+  /// What this line did to the balance. Positive means money owed to the party.
+  ///
+  /// Added, not subtracted: the server sends `dr_amount` already negative and
+  /// runs its own closing balance as `cr + dr`. Subtracting it here flipped
+  /// every debit green and made a line read as the opposite of the closing
+  /// balance printed under it.
+  double get movement => credit + debit;
 
   /// Whose trades this line drills into: the client whose book the share came
   /// from on a partnership leg, otherwise the party being viewed.
@@ -125,4 +136,19 @@ class LedgerRow {
 
   /// True when this line can be taken back out of the book it came from.
   bool get canDelete => deleteTarget != null;
+}
+
+/// A party's statement as the server sends it: the lines, and the balance it
+/// arrives at.
+///
+/// The closing figure is taken from the server rather than re-derived from the
+/// rows, because a date filter narrows the rows without changing where the
+/// party actually stands.
+class PartyStatement {
+  const PartyStatement({required this.rows, required this.balance});
+
+  final List<LedgerRow> rows;
+  final double balance;
+
+  static const empty = PartyStatement(rows: [], balance: 0);
 }

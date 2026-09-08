@@ -14,12 +14,43 @@ const _editLogPath = '/soda/edit-logs/';
 /// The value before and after is the whole point of this screen, so each
 /// change is shown as `was → now` rather than a summary that has to be
 /// trusted.
-class EditHistoryScreen extends ConsumerWidget {
+class EditHistoryScreen extends ConsumerStatefulWidget {
   const EditHistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EditHistoryScreen> createState() => _EditHistoryScreenState();
+}
+
+class _EditHistoryScreenState extends ConsumerState<EditHistoryScreen> {
+  final _search = TextEditingController();
+
+  /// Null means every kind. The desk filters by voucher type first and then
+  /// looks for the number, which is the order this follows.
+  String? _type;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  bool _matches(Map<String, dynamic> row, String term) {
+    if (_type != null && (row['voucher_type'] ?? '').toString() != _type) {
+      return false;
+    }
+    if (term.isEmpty) return true;
+    return [
+      row['voucher_no'],
+      row['voucher_type_label'],
+      row['edited_by'],
+      row['changes'],
+    ].join(' ').toLowerCase().contains(term);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final rows = ref.watch(masterRowsProvider(_editLogPath));
+    final term = _search.text.trim().toLowerCase();
 
     return Scaffold(
       appBar: AppBar(
@@ -38,11 +69,93 @@ class EditHistoryScreen extends ConsumerWidget {
           onRetry: () => ref.invalidate(masterRowsProvider(_editLogPath)),
           isEmpty: (list) => list.isEmpty,
           emptyTitle: 'No edits recorded',
-          builder: (list) => ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            itemCount: list.length,
-            itemBuilder: (context, i) => _EditRow(row: list[i]),
-          ),
+          builder: (list) {
+            // Offered from the data rather than a fixed list, so a kind that
+            // was never edited does not sit there as a dead chip.
+            final types = <String, String>{
+              for (final row in list)
+                if ((row['voucher_type'] ?? '').toString().isNotEmpty)
+                  row['voucher_type'].toString():
+                      (row['voucher_type_label'] ?? row['voucher_type']).toString(),
+            };
+
+            final shown = [
+              for (final row in list)
+                if (_matches(row, term)) row,
+            ];
+
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 8),
+                  child: TextField(
+                    controller: _search,
+                    onChanged: (_) => setState(() {}),
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Search voucher, field or who changed it',
+                      prefixIcon: const Icon(Icons.search, size: 19),
+                      suffixIcon: term.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => setState(_search.clear),
+                            ),
+                    ),
+                  ),
+                ),
+                if (types.length > 1)
+                  SizedBox(
+                    height: 38,
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      children: [
+                        _TypeChip(
+                          label: 'All',
+                          selected: _type == null,
+                          onTap: () => setState(() => _type = null),
+                        ),
+                        for (final entry in types.entries)
+                          _TypeChip(
+                            label: entry.value,
+                            selected: _type == entry.key,
+                            onTap: () => setState(() => _type = entry.key),
+                          ),
+                      ],
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      shown.length == list.length
+                          ? '${list.length} changes'
+                          : '${shown.length} of ${list.length}',
+                      style: context.text.labelSmall,
+                    ),
+                  ),
+                ),
+                if (shown.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: Text('Nothing matches that',
+                          style: context.text.bodyMedium),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      itemCount: shown.length,
+                      itemBuilder: (context, i) => _EditRow(row: shown[i]),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -183,6 +296,48 @@ class _EditRow extends StatelessWidget {
                 ),
               ),
         ],
+      ),
+    );
+  }
+}
+
+class _TypeChip extends StatelessWidget {
+  const _TypeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final book = context.book;
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 7),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTheme.rField),
+        onTap: onTap,
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 13),
+          decoration: BoxDecoration(
+            color: selected ? context.scheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(AppTheme.rField),
+            border: Border.all(color: selected ? context.scheme.primary : book.line),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: selected ? Colors.white : book.muted,
+            ),
+          ),
+        ),
       ),
     );
   }

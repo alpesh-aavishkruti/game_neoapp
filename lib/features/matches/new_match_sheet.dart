@@ -10,9 +10,9 @@ import 'match_providers.dart';
 
 /// Opening a new match.
 ///
-/// Only the things that differ per match are asked for. Commission and PTRN
-/// default to on, matching how the desk creates one, so a new board is ready
-/// to take entries without a settings pass first.
+/// Only the sides are asked for, the way the desk asks. Commission and PTRN
+/// are not set here - they sit above the board, where they can be changed
+/// between entries, which is where they actually get used.
 class NewMatchSheet extends ConsumerStatefulWidget {
   const NewMatchSheet({super.key, required this.game});
 
@@ -40,8 +40,6 @@ class _NewMatchSheetState extends ConsumerState<NewMatchSheet> {
     TextEditingController(),
   ];
 
-  bool _commission = true;
-  bool _ptrn = true;
   bool _busy = false;
   String? _error;
 
@@ -91,7 +89,7 @@ class _NewMatchSheetState extends ConsumerState<NewMatchSheet> {
         await api.post('/master/cups/', data: {
           'cup_name': _cupName.text.trim(),
           for (var i = 0; i < teams.length; i++) 'nation_${String.fromCharCode(97 + i)}': teams[i],
-          'commission_enabled': _commission,
+          'total_nations': teams.length,
         });
       } else {
         await api.post('/master/matches/', data: {
@@ -100,8 +98,6 @@ class _NewMatchSheetState extends ConsumerState<NewMatchSheet> {
           'nation_b': b,
           if (_isTest && _nationC.text.trim().isNotEmpty)
             'nation_c': _nationC.text.trim().toUpperCase(),
-          'commission_enabled': _commission,
-          'ptrn_enabled': _ptrn,
         });
       }
 
@@ -214,25 +210,6 @@ class _NewMatchSheetState extends ConsumerState<NewMatchSheet> {
                   ),
                 ],
               ],
-
-              const SizedBox(height: 8),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Commission', style: TextStyle(fontSize: 14)),
-                value: _commission,
-                onChanged: (v) => setState(() => _commission = v),
-              ),
-              if (!_isCup)
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('PTRN', style: TextStyle(fontSize: 14)),
-                  subtitle: Text(
-                    'Partner shares are worked out on every entry',
-                    style: context.text.bodySmall?.copyWith(fontSize: 11),
-                  ),
-                  value: _ptrn,
-                  onChanged: (v) => setState(() => _ptrn = v),
-                ),
 
               if (_error != null) ...[
                 const SizedBox(height: 10),

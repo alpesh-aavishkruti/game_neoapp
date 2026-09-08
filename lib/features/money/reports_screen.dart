@@ -1,14 +1,30 @@
 import 'package:flutter/material.dart';
 
+import '../reports/general_report_screen.dart';
+import '../reports/havala_report_screen.dart';
+import '../reports/ledger_report_screen.dart';
+import '../reports/match_report_screen.dart';
 import 'general_screen.dart';
 import 'havala_screen.dart';
 import 'ledger_screen.dart';
 
-/// The money side of the book, in one place.
+/// One tab per entry on the desk's REPORT bar, in the desk's order.
 ///
-/// A ledger answers "where does this party stand" and a havala moves money
-/// between two of them. They are read together often enough that separating
-/// them into two tabs of the bar would only cost taps.
+/// The first three read the book on screen; the last three build a document to
+/// hand over. They are the same six an operator already knows by name, so they
+/// are named the same rather than regrouped into something tidier.
+const _tabs = <(String, Widget)>[
+  ('HAVALA REPORT', HavalaReportScreen(embedded: true)),
+  ('VIEW GENERAL', GeneralScreen(embedded: true)),
+  ('VIEW PARTY', LedgerScreen(embedded: true)),
+  ('LEDGER REPORT', LedgerReportScreen(embedded: true)),
+  ('GENERAL REPORT', GeneralReportScreen(embedded: true)),
+  ('MATCH REPORT', MatchReportScreen(embedded: true)),
+  // Not on the desk's report bar - havalas are raised from their own menu -
+  // but the list of them has to live somewhere, and this is where money is.
+  ('HAVALA', HavalaScreen(embedded: true)),
+];
+
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
 
@@ -18,11 +34,17 @@ class ReportsScreen extends StatefulWidget {
 
 class _ReportsScreenState extends State<ReportsScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 3, vsync: this);
+  late final TabController _controller = TabController(
+    length: _tabs.length,
+    vsync: this,
+    // Opens on VIEW GENERAL: the report builders are run occasionally, the
+    // book is read all day.
+    initialIndex: 1,
+  );
 
   @override
   void dispose() {
-    _tabs.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -37,7 +59,7 @@ class _ReportsScreenState extends State<ReportsScreen>
           child: Align(
             alignment: Alignment.centerLeft,
             child: TabBar(
-              controller: _tabs,
+              controller: _controller,
               isScrollable: true,
               tabAlignment: TabAlignment.start,
               dividerColor: Colors.transparent,
@@ -48,20 +70,16 @@ class _ReportsScreenState extends State<ReportsScreen>
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.2,
               ),
-              tabs: const [Tab(text: 'GENERAL'), Tab(text: 'LEDGER'), Tab(text: 'HAVALA')],
+              tabs: [for (final (label, _) in _tabs) Tab(text: label)],
             ),
           ),
         ),
       ),
       body: TabBarView(
-        controller: _tabs,
-        children: const [
-          // Each keeps its own app bar off: the shell above already names the
-          // section, and two stacked bars would eat the board.
-          GeneralScreen(embedded: true),
-          LedgerScreen(embedded: true),
-          HavalaScreen(embedded: true),
-        ],
+        controller: _controller,
+        // Each keeps its own app bar off: the shell above already names the
+        // section, and two stacked bars would eat the board.
+        children: [for (final (_, screen) in _tabs) screen],
       ),
     );
   }

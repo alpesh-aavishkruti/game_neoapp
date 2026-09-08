@@ -145,7 +145,7 @@ class _HavalaRow extends StatelessWidget {
                 ),
               ),
               Text(
-                Money.format(entry.amount, decimals: 0),
+                Money.format(entry.amount),
                 style: TextStyle(
                   fontFamily: 'Roboto Mono',
                   fontSize: 14,

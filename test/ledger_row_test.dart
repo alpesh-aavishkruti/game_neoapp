@@ -50,8 +50,26 @@ void main() {
     });
 
     test('debit is money the party owes', () {
-      final row = LedgerRow.fromJson({'id': 1, 'dr_amount': '2340'});
+      // The server sends debits already signed - `dr_amount` is never
+      // positive - and runs its own closing balance as cr + dr.
+      final row = LedgerRow.fromJson({'id': 1, 'dr_amount': '-2340'});
       expect(row.movement, -2340);
+    });
+
+    test('a line moves the balance the same way the server does', () {
+      // Two consecutive lines off party 0017's real statement: the closing
+      // balance walks -94105.00 -> -88718.40 -> -91058.40, so the movements
+      // have to be -94105, +5386.60, -2340.
+      final settled = LedgerRow.fromJson(
+          {'id': 1, 'cr_amount': 0.0, 'dr_amount': -94105.0});
+      final share = LedgerRow.fromJson(
+          {'id': 2, 'cr_amount': 5386.60, 'dr_amount': 0.0});
+      final lost = LedgerRow.fromJson(
+          {'id': 3, 'cr_amount': 0.0, 'dr_amount': -2340.0});
+
+      expect(settled.movement, -94105);
+      expect(settled.movement + share.movement + lost.movement,
+          closeTo(-91058.40, 0.001));
     });
   });
 
