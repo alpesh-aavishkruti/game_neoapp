@@ -864,19 +864,23 @@ class _LedgerLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final book = context.book;
 
+    final voucher = '${row.voucherType} ${row.voucherNo}'.trim();
+    final byline = [voucher, row.createdBy].where((s) => s.isNotEmpty).join('  ');
+
     return Container(
       decoration: BoxDecoration(
         color: isChecked
             ? context.scheme.primary.withValues(alpha: 0.06)
-            : Colors.transparent,
+            : context.scheme.surface,
         border: Border(bottom: BorderSide(color: book.line)),
       ),
-      padding: const EdgeInsets.fromLTRB(6, 7, 8, 7),
+      padding: const EdgeInsets.fromLTRB(2, 6, 12, 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 34,
+            width: 36,
+            height: 34,
             child: Checkbox(
               visualDensity: VisualDensity.compact,
               value: isChecked,
@@ -884,27 +888,32 @@ class _LedgerLine extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 36,
-            child: Column(
-              children: [
-                Text(
-                  row.date == null ? '--' : row.date!.day.toString().padLeft(2, '0'),
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    height: 1,
+            width: 32,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Column(
+                children: [
+                  Text(
+                    row.date == null
+                        ? '--'
+                        : row.date!.day.toString().padLeft(2, '0'),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      height: 1.1,
+                    ),
                   ),
-                ),
-                Text(
-                  row.date == null
-                      ? ''
-                      : AppTime.dateShort(row.date).split(' ').last.toUpperCase(),
-                  style: context.text.labelSmall?.copyWith(fontSize: 9),
-                ),
-              ],
+                  Text(
+                    row.date == null
+                        ? ''
+                        : AppTime.dateShort(row.date).split(' ').last.toUpperCase(),
+                    style: context.text.labelSmall?.copyWith(fontSize: 9, height: 1.2),
+                  ),
+                ],
+              ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 9),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -912,86 +921,136 @@ class _LedgerLine extends StatelessWidget {
               children: [
                 Text(
                   row.description,
-                  style: context.text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  style: context.text.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600, height: 1.25),
                 ),
-                const SizedBox(height: 3),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 2,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    if (row.isPartnershipLeg)
-                      // A share earned on someone else's book. Marked so it is
-                      // never read as this party's own play.
-                      StatusChip('PTRN${row.ptrnSlot} · ${row.ptrnSourceCode ?? ''}',
-                          tone: ChipTone.open),
-                    if (row.voucherType.isNotEmpty || row.voucherNo.isNotEmpty)
-                      Text(
-                        '${row.voucherType} ${row.voucherNo}'.trim(),
-                        style: context.text.bodySmall?.copyWith(fontSize: 10.5),
+                // One strip of a fixed height, whether or not this line has
+                // buttons. Letting the buttons add their own height made every
+                // havala row taller than the settlement above it, and the list
+                // read as ragged rather than as a column of figures.
+                SizedBox(
+                  height: 24,
+                  child: Row(
+                    children: [
+                      if (row.isPartnershipLeg) ...[
+                        // A share earned on someone else's book. Marked so it
+                        // is never read as this party's own play.
+                        StatusChip('PTRN${row.ptrnSlot} · ${row.ptrnSourceCode ?? ''}',
+                            tone: ChipTone.open),
+                        const SizedBox(width: 6),
+                      ],
+                      if (row.isEdited) ...[
+                        StatusChip('EDITED', tone: ChipTone.open),
+                        const SizedBox(width: 6),
+                      ],
+                      // Expanded, not Flexible beside a Spacer: two flex
+                      // children split the free space evenly, which left the
+                      // voucher number reading "RGML HAVAL..." next to a strip
+                      // of nothing.
+                      Expanded(
+                        child: Text(
+                          byline,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.text.bodySmall?.copyWith(fontSize: 10.5),
+                        ),
                       ),
-                    if (row.createdBy.isNotEmpty)
-                      Text(
-                        row.createdBy,
-                        style: context.text.bodySmall?.copyWith(fontSize: 10.5),
-                      ),
-                    if (row.isEdited)
-                      StatusChip('EDITED', tone: ChipTone.open),
-                  ],
+                      // Shown rather than hidden behind a swipe: an action
+                      // nobody can see is an action nobody uses.
+                      if (onJump != null)
+                        _RowAction(
+                          icon: Icons.open_in_new,
+                          tooltip: 'Jump to that party',
+                          colour: book.muted,
+                          onTap: onJump!,
+                        ),
+                      if (onDelete != null)
+                        _RowAction(
+                          icon: Icons.delete_outline,
+                          tooltip: 'Delete entry',
+                          colour: book.down,
+                          onTap: onDelete!,
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                Money.position(row.movement),
-                style: TextStyle(
-                  fontFamily: 'Roboto Mono',
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: book.forAmount(row.movement),
-                ),
-              ),
-              Text(
-                Money.format(row.closingBalance),
-                style: context.text.bodySmall?.copyWith(fontSize: 10.5),
-              ),
-              // Shown as buttons rather than hidden behind a swipe: an action
-              // nobody can see is an action nobody uses.
-              if (onJump != null || onDelete != null)
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (onJump != null)
-                      IconButton(
-                        icon: const Icon(Icons.open_in_new, size: 16),
-                        tooltip: 'Jump to that party',
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints(minWidth: 30, minHeight: 26),
-                        padding: EdgeInsets.zero,
-                        onPressed: onJump,
+          const SizedBox(width: 8),
+          // Fixed width, so the figures form a straight column down the page
+          // instead of stepping in and out with the length of each number.
+          SizedBox(
+            width: 80,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      Money.position(row.movement),
+                      style: TextStyle(
+                        fontFamily: 'Roboto Mono',
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                        color: book.forAmount(row.movement),
                       ),
-                    if (onDelete != null)
-                      IconButton(
-                        icon: Icon(Icons.delete_outline, size: 16, color: book.down),
-                        tooltip: 'Delete entry',
-                        visualDensity: VisualDensity.compact,
-                        constraints: const BoxConstraints(minWidth: 30, minHeight: 26),
-                        padding: EdgeInsets.zero,
-                        onPressed: onDelete,
-                      ),
-                  ],
-                ),
-            ],
+                    ),
+                  ),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      Money.format(row.closingBalance),
+                      style: context.text.bodySmall
+                          ?.copyWith(fontSize: 10.5, height: 1.3),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+/// A quiet action on a statement line.
+///
+/// Sized to the strip it sits in rather than to Material's default button,
+/// which is tall enough to change the height of the whole row.
+class _RowAction extends StatelessWidget {
+  const _RowAction({
+    required this.icon,
+    required this.tooltip,
+    required this.colour,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final Color colour;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Tooltip(
+        message: tooltip,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppTheme.rField),
+          onTap: onTap,
+          child: SizedBox(
+            width: 28,
+            height: 24,
+            child: Icon(icon, size: 16, color: colour),
+          ),
+        ),
+      );
 }
 
 class _PartyPicker extends StatefulWidget {
