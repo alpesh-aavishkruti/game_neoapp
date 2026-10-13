@@ -7,6 +7,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/field_label.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 const employeePath = '/employee/';
 
@@ -189,7 +190,6 @@ class _UserEditSheetState extends ConsumerState<UserEditSheet> {
                   controller: _userName,
                   autofocus: !_isEditing,
                   autocorrect: false,
-                  decoration: const InputDecoration(hintText: 'narshi'),
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
               ),
@@ -282,7 +282,7 @@ class _UserEditSheetState extends ConsumerState<UserEditSheet> {
               const SizedBox(height: 14),
               LabelledField(
                 label: 'Role',
-                child: DropdownButtonFormField<int>(
+                child: AppDropdown<int>(
                   initialValue: _roleId,
                   isExpanded: true,
                   hint: Text(roles.isLoading ? 'Loading…' : 'Choose a role'),

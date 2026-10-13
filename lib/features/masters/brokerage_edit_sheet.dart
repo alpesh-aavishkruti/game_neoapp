@@ -12,6 +12,7 @@ import '../../shared/widgets/field_label.dart';
 import '../../shared/widgets/party_field.dart';
 import '../matches/match_providers.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 /// Setting a party's brokerage for one game.
 ///
@@ -391,7 +392,7 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
                           Expanded(
                             child: LabelledField(
                               label: 'Game',
-                              child: DropdownButtonFormField<GameType>(
+                              child: AppDropdown<GameType>(
                                 initialValue: _game,
                                 isExpanded: true,
                                 items: [
@@ -582,7 +583,7 @@ class _SlotRow extends StatelessWidget {
           if (!slot.isPrimary && slot.isFilled)
             Padding(
               padding: const EdgeInsets.only(top: 8),
-              child: DropdownButtonFormField<String>(
+              child: AppDropdown<String>(
                 initialValue: types.contains(slot.type) ? slot.type : null,
                 isExpanded: true,
                 decoration: const InputDecoration(hintText: 'Partner type'),

@@ -9,6 +9,7 @@ import '../../data/models/match.dart';
 import '../../data/models/settlement.dart';
 import '../../shared/widgets/field_label.dart';
 import '../matches/match_providers.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 final accountsProvider = FutureProvider<List<LedgerAccount>>((ref) async {
   return ref.watch(matchRepositoryProvider).accounts();
@@ -335,7 +336,7 @@ class _AccountPicker extends StatelessWidget {
   final ValueChanged<LedgerAccount> onChanged;
 
   @override
-  Widget build(BuildContext context) => DropdownButtonFormField<LedgerAccount>(
+  Widget build(BuildContext context) => AppDropdown<LedgerAccount>(
         initialValue: selected,
         isExpanded: true,
         decoration: const InputDecoration(hintText: 'Choose an account'),

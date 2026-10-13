@@ -13,6 +13,7 @@ import '../../shared/widgets/async_view.dart';
 import '../masters/master_providers.dart';
 import '../matches/match_providers.dart';
 import 'ledger_screen.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 /// `dd-MM-yyyy`, which is the only shape this endpoint's `from_date` accepts.
 String _asOfParam(DateTime at) =>
@@ -350,7 +351,7 @@ class _FilterBarState extends ConsumerState<_FilterBar> {
                 Expanded(
                   // Left to size itself: pinned to 40 the field clipped the
                   // bottom of its own selected value.
-                  child: DropdownButtonFormField<int?>(
+                  child: AppDropdown<int?>(
                     initialValue: widget.categoryId,
                     isExpanded: true,
                     decoration: const InputDecoration(isDense: true),

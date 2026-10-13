@@ -54,7 +54,16 @@ class _MatchReportScreenState extends ConsumerState<MatchReportScreen> {
         _members = const [];
       });
 
-  Future<void> _run() => ReportRunner.run(
+  Future<void> _run() {
+    // The desk refuses an empty pick rather than quietly reporting on every
+    // match in the range, which is rarely what was meant.
+    if (_picked.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pick at least one match.')),
+      );
+      return Future.value();
+    }
+    return ReportRunner.run(
         context,
         ref,
         path: '/master/matches/download_match_report/',
@@ -68,6 +77,7 @@ class _MatchReportScreenState extends ConsumerState<MatchReportScreen> {
           'party_ids': _members.map((p) => p.id).join(','),
         },
       );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -129,7 +139,7 @@ class _MatchReportScreenState extends ConsumerState<MatchReportScreen> {
                       children: [
                         Text(
                           _picked.isEmpty
-                              ? '${value.length} matches - all of them'
+                              ? '${value.length} matches - pick the ones to report'
                               : '${_picked.length} of ${value.length} picked',
                           style: context.text.bodySmall,
                         ),

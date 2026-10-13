@@ -43,6 +43,9 @@ class _EditHistoryScreenState extends ConsumerState<EditHistoryScreen> {
       row['voucher_no'],
       row['voucher_type_label'],
       row['edited_by'],
+      row['party'],
+      row['other_party'],
+      row['description'],
       row['changes'],
     ].join(' ').toLowerCase().contains(term);
   }
@@ -207,6 +210,12 @@ class _EditRow extends StatelessWidget {
         .trim();
     final kind = (row['voucher_type_label'] ?? row['voucher_type'] ?? '').toString().trim();
     final changes = _changes;
+    // Whom the figure was with and what it was for - an amount-only edit
+    // said neither, so the desk could not tell whose figure had moved.
+    final party = (row['party'] ?? '').toString().trim();
+    final other = (row['other_party'] ?? '').toString().trim();
+    final description = (row['description'] ?? '').toString().trim();
+    final parties = [party, other].where((p) => p.isNotEmpty).join('  ↔  ');
 
     return Container(
       decoration: BoxDecoration(
@@ -244,6 +253,22 @@ class _EditRow extends StatelessWidget {
               ),
             ],
           ),
+          if (parties.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                parties.toUpperCase(),
+                style: context.text.bodyMedium?.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          if (description.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(description, style: context.text.bodySmall?.copyWith(fontSize: 11)),
+            ),
           if (changes.isEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 5),

@@ -93,5 +93,26 @@ class HavalaRepository {
     });
   }
 
+  /// Changing a havala that is already written.
+  ///
+  /// The amount keeps whatever sign the caller passes: a Dena havala is held
+  /// as a minus figure, and an edit that only renamed a party must not turn it
+  /// into a Lena one.
+  Future<void> update({
+    required int id,
+    required int fromPartyId,
+    required int toPartyId,
+    required double amount,
+    required DateTime date,
+    String description = '',
+  }) =>
+      _api.patch('/soda/havala/$id/', data: {
+        'voucher_date': AppTime.apiDate(date),
+        'p_member': fromPartyId,
+        'h_member': toPartyId,
+        'amount': amount,
+        'description': description.trim(),
+      });
+
   Future<void> delete(int id) => _api.delete('/soda/havala/$id/');
 }

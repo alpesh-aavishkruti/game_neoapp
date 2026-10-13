@@ -6,6 +6,7 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/field_label.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 /// One field on a small master form.
 sealed class MasterField {
@@ -28,11 +29,18 @@ class TextMasterField extends MasterField {
     this.hint,
     this.required = false,
     this.uppercase = false,
+    this.labelWhen,
+    this.hintWhen,
   });
 
   final String? hint;
   final bool required;
   final bool uppercase;
+
+  /// The same box can mean different things by what was chosen above it - a
+  /// match's first side is a team, but a session's is its name.
+  final String Function(Map<String, String?> choices)? labelWhen;
+  final String? Function(Map<String, String?> choices)? hintWhen;
 }
 
 class ChoiceMasterField extends MasterField {
@@ -84,6 +92,7 @@ class SimpleMasterSheet extends ConsumerStatefulWidget {
     required this.fields,
     this.editing,
     this.derive,
+    this.validate,
   });
 
   final String title;
@@ -97,6 +106,10 @@ class SimpleMasterSheet extends ConsumerStatefulWidget {
   /// typed wrong.
   final void Function(Map<String, dynamic> payload)? derive;
 
+  /// A rule across fields, checked on the finished payload before it is sent.
+  /// Returns the message to show, or null when the form may be saved.
+  final String? Function(Map<String, dynamic> payload)? validate;
+
   static Future<bool?> show(
     BuildContext context, {
     required String title,
@@ -104,6 +117,7 @@ class SimpleMasterSheet extends ConsumerStatefulWidget {
     required List<MasterField> fields,
     Map<String, dynamic>? editing,
     void Function(Map<String, dynamic> payload)? derive,
+    String? Function(Map<String, dynamic> payload)? validate,
   }) =>
       showModalBottomSheet<bool>(
         context: context,
@@ -115,6 +129,7 @@ class SimpleMasterSheet extends ConsumerStatefulWidget {
           fields: fields,
           editing: editing,
           derive: derive,
+          validate: validate,
         ),
       );
 
@@ -212,6 +227,12 @@ class _SimpleMasterSheetState extends ConsumerState<SimpleMasterSheet> {
 
       widget.derive?.call(payload);
 
+      final problem = widget.validate?.call(payload);
+      if (problem != null) {
+        setState(() => _error = problem);
+        return;
+      }
+
       final api = ref.read(apiClientProvider);
       if (_isEditing) {
         await api.patch('${widget.path}${widget.editing!['id']}/', data: payload);
@@ -219,7 +240,7 @@ class _SimpleMasterSheetState extends ConsumerState<SimpleMasterSheet> {
         await api.post(widget.path, data: payload);
       }
 
-      ref.invalidate(masterRowsProvider(widget.path));
+      refreshMasterRows(ref, widget.path);
       if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -304,13 +325,14 @@ class _SimpleMasterSheetState extends ConsumerState<SimpleMasterSheet> {
   }
 
   Widget _fieldWidget(MasterField field) => switch (field) {
-        TextMasterField(:final hint, :final uppercase) => LabelledField(
-            label: field.label,
+        TextMasterField(:final hint, :final uppercase, :final labelWhen, :final hintWhen) =>
+          LabelledField(
+            label: labelWhen?.call(_choice) ?? field.label,
             child: TextField(
               controller: _text[field.key],
               textCapitalization:
                   uppercase ? TextCapitalization.characters : TextCapitalization.sentences,
-              decoration: InputDecoration(hintText: hint),
+              decoration: InputDecoration(hintText: hintWhen?.call(_choice) ?? hint),
             ),
           ),
         NumberMasterField(:final hint) => LabelledField(
@@ -324,7 +346,7 @@ class _SimpleMasterSheetState extends ConsumerState<SimpleMasterSheet> {
           ),
         ChoiceMasterField(:final options) => LabelledField(
             label: field.label,
-            child: DropdownButtonFormField<String>(
+            child: AppDropdown<String>(
               initialValue: _choice[field.key],
               isExpanded: true,
               decoration: const InputDecoration(hintText: 'Choose'),

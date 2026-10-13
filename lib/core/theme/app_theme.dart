@@ -32,6 +32,10 @@ class AppColors {
   static const warn = Color(0xFFFFB020);
   static const warnSoft = Color(0xFF2E2210);
 
+  /// The brand itself - the amber wordmark on navy, as in the web header.
+  static const brandNavy = Color(0xFF0B1220);
+  static const brandAmber = Color(0xFFFDB022);
+
   // Light - offered as a second theme, following the phone's own setting.
   static const lGround = Color(0xFFF1F4F9);
   static const lSurface = Color(0xFFFFFFFF);
@@ -232,6 +236,9 @@ class AppTheme {
       colorScheme: scheme,
       scaffoldBackgroundColor: ground,
       canvasColor: ground,
+      // The chosen row in an open dropdown is marked in a light brand tint
+      // rather than Material's grey, which read as a disabled row.
+      focusColor: brand.withValues(alpha: 0.08),
       textTheme: text,
       dividerTheme: DividerThemeData(color: line, thickness: 1, space: 1),
       appBarTheme: AppBarTheme(
@@ -283,6 +290,16 @@ class AppTheme {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(rButton)),
         ),
       ),
+      // Solid brand blue, like every primary action on the web desk -
+      // Material's pale container tint read as a disabled button.
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: brand,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        highlightElevation: 4,
+        extendedTextStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.3),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(foregroundColor: brand),
       ),
@@ -321,10 +338,24 @@ class AppTheme {
           side: BorderSide(color: line),
         ),
       ),
+      // Toasts on navy in both themes: on the light ground a white toast sat
+      // on white and read as part of the form it covered.
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: surface,
-        contentTextStyle: TextStyle(color: ink, fontSize: 13.5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(rCard)),
+        backgroundColor: AppColors.brandNavy,
+        contentTextStyle: const TextStyle(
+          color: Colors.white,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+          height: 1.3,
+        ),
+        actionTextColor: AppColors.brandAmber,
+        closeIconColor: Colors.white70,
+        elevation: 6,
+        insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+        ),
         behavior: SnackBarBehavior.floating,
       ),
       extensions: [book],

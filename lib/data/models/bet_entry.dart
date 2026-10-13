@@ -43,6 +43,7 @@ class BetEntry {
     required this.clientName,
     this.run,
     this.isEdited = false,
+    this.isChecked = false,
     this.createdAt,
   });
 
@@ -76,6 +77,10 @@ class BetEntry {
   /// must never be mistaken for an original.
   final bool isEdited;
 
+  /// Ticked off against the party book. The tick is kept on the server, so
+  /// what one operator reconciles the next one sees.
+  final bool isChecked;
+
   final DateTime? createdAt;
 
   factory BetEntry.fromJson(Map<String, dynamic> json) => BetEntry(
@@ -93,6 +98,7 @@ class BetEntry {
         clientName: (json['client_name'] ?? '').toString().trim(),
         run: int.tryParse('${json['run']}'),
         isEdited: json['is_edited'] == true,
+        isChecked: json['is_checked'] == true,
         createdAt: AppTime.toLocal(json['created_at']),
       );
 

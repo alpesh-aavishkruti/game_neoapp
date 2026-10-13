@@ -71,6 +71,9 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        // The shell keeps every tab alive at once, so each button needs its
+        // own tag or opening any screen trips over two identical heroes.
+        heroTag: 'fab-add-party',
         onPressed: () => PartyEditSheet.show(context),
         icon: const Icon(Icons.person_add_alt),
         label: const Text('Add party'),

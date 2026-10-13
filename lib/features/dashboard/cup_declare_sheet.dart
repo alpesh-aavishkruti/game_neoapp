@@ -10,6 +10,7 @@ import '../../shared/widgets/field_label.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../matches/match_providers.dart';
 import 'close_match_sheet.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 final cupProgressProvider =
     FutureProvider.family<CupProgress, GameMatch>((ref, cup) async {
@@ -285,7 +286,7 @@ class _Eliminate extends StatelessWidget {
                 'Could not load the accounts list.',
                 style: context.text.bodyMedium?.copyWith(color: book.down),
               ),
-              data: (list) => DropdownButtonFormField<LedgerAccount>(
+              data: (list) => AppDropdown<LedgerAccount>(
                 initialValue: account,
                 isExpanded: true,
                 decoration: const InputDecoration(hintText: 'Choose an account'),

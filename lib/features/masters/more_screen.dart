@@ -48,6 +48,7 @@ class MoreScreen extends ConsumerWidget {
           title: 'Match',
           path: '/master/matches/',
           fields: _matchFields,
+          validate: _checkMatchSides,
         ),
         onEdit: (context, row) => SimpleMasterSheet.show(
           context,
@@ -55,12 +56,18 @@ class MoreScreen extends ConsumerWidget {
           path: '/master/matches/',
           fields: _matchFields,
           editing: row,
+          validate: _checkMatchSides,
         ),
         rowOf: (row) => MasterRowSpec(
-          title: [row['nation_a'], row['nation_b']]
-              .where((e) => (e ?? '').toString().trim().isNotEmpty)
-              .join(' vs ')
-              .toUpperCase(),
+          // Led by the match's own number, as View Party prints it
+          // ("231 - PAKISTAN VS 20 OVER"), so a line there is found here.
+          title: [
+            if (row['id'] != null) '${row['id']} -',
+            [row['nation_a'], row['nation_b']]
+                .where((e) => (e ?? '').toString().trim().isNotEmpty)
+                .join(' vs ')
+                .toUpperCase(),
+          ].join(' '),
           subtitle: [
             // The stored code reads ONE_DAY; the desk calls it One Day.
             GameType.parse(row['game']).label,
@@ -115,7 +122,10 @@ class MoreScreen extends ConsumerWidget {
         onAdd: (context) => BrokerageEditSheet.show(context),
         onEdit: (context, row) => BrokerageEditSheet.show(context, editing: row),
         rowOf: (row) => MasterRowSpec(
-          title: (row['game_code'] ?? 'Brokerage').toString(),
+          // The server's own code reads ONE_DAY; the desk calls it One Day.
+          title: row['game_code'] == null
+              ? 'Brokerage'
+              : GameType.parse(row['game_code']).label,
           subtitle: 'Comm ${row['comm_percent'] ?? 0}% · code ${row['comm_code_percent'] ?? 0}%',
           trailing: (row['date'] ?? '').toString(),
         ),
@@ -308,21 +318,61 @@ class MoreScreen extends ConsumerWidget {
   /// The desk's match form asks for the game and the sides, and nothing else.
   /// Commission and PTRN are not set here - they live above the board, where
   /// they decide how the next entry is written.
-  static const _matchFields = [
-    ChoiceMasterField(
+  static bool _isSession(Map<String, String?> c) => c['game'] == 'SESSION';
+
+  /// The desk's match form: the game first, then the boxes that game needs.
+  /// A session is a name and a code, a test adds the draw as a third side,
+  /// and a one day or cup is two teams.
+  static final _matchFields = <MasterField>[
+    const ChoiceMasterField(
       key: 'game',
       label: 'Game',
       required: true,
       options: {
         'ONE_DAY': 'One Day',
-        'TEST': 'Test',
         'SESSION': 'Session',
+        'TEST': 'Test',
+        'CUP': 'Cup',
       },
     ),
-    TextMasterField(key: 'nation_a', label: 'First side', required: true, uppercase: true),
-    TextMasterField(key: 'nation_b', label: 'Second side', required: true, uppercase: true),
-    TextMasterField(key: 'nation_c', label: 'Third outcome', hint: 'DRAW', uppercase: true),
+    TextMasterField(
+      key: 'nation_a',
+      label: 'Nation A',
+      required: true,
+      uppercase: true,
+      labelWhen: (c) => _isSession(c) ? 'Name' : 'Nation A',
+      hintWhen: (c) => _isSession(c) ? 'OVER 1' : 'INDIA',
+    ),
+    TextMasterField(
+      key: 'nation_b',
+      label: 'Nation B',
+      required: true,
+      uppercase: true,
+      labelWhen: (c) => _isSession(c) ? 'Code' : 'Nation B',
+      hintWhen: (c) => _isSession(c) ? 'OVER' : 'AUSTRALIA',
+    ),
+    TextMasterField(
+      key: 'nation_c',
+      label: 'Nation C',
+      hint: 'DRAW',
+      uppercase: true,
+      showIf: (c) => c['game'] == 'TEST',
+    ),
+    const SwitchMasterField(key: 'is_active', label: 'Active', initial: true),
   ];
+
+  /// The two sides must read apart at a glance: not the same name, and not
+  /// the same first letter, since the board marks each side by its initial.
+  /// A session's name and code are not sides, so they are left alone.
+  static String? _checkMatchSides(Map<String, dynamic> payload) {
+    if (payload['game'] == 'SESSION') return null;
+    final a = (payload['nation_a'] ?? '').toString().trim().toLowerCase();
+    final b = (payload['nation_b'] ?? '').toString().trim().toLowerCase();
+    if (a.isEmpty || b.isEmpty) return null;
+    if (a == b) return 'Nation A and Nation B cannot have the same name';
+    if (a[0] == b[0]) return 'First letters of Nation A and Nation B cannot be the same';
+    return null;
+  }
 
   /// True while the cup is at least [count] teams big.
   static bool Function(Map<String, String?>) _upTo(int count) =>

@@ -48,6 +48,28 @@ class BookRepository {
         .toList();
   }
 
+  /// Tick or untick bets on a match.
+  ///
+  /// Pass [partyId] for a whole party's line in the book, or [entryIds] for
+  /// single bets inside it. The tick lives on the server, so the desk and the
+  /// phone reconcile the same book.
+  Future<void> setChecked({
+    required GameMatch match,
+    required bool checked,
+    int? partyId,
+    List<int> entryIds = const [],
+  }) async {
+    final slug = match.game.slug;
+    await _api.post(
+      '/soda/$slug/${match.id}/bulk_update_check_status/',
+      data: {
+        'party_id': ?partyId,
+        if (entryIds.isNotEmpty) 'entry_ids': entryIds,
+        'check_all': checked ? 'all' : 'none',
+      },
+    );
+  }
+
   /// Whether [match] supports the per-party drill-down at all.
   static bool supportsPartySoda(GameMatch match) => match.game != GameType.test;
 

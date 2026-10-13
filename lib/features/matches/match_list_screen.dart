@@ -81,6 +81,7 @@ class _MatchListScreenState extends ConsumerState<MatchListScreen>
               builder: (context, _) {
                 final game = GameType.values[_tabs.index];
                 return FloatingActionButton.extended(
+                  heroTag: 'fab-new-match',
                   onPressed: () => NewMatchSheet.show(context, game: game),
                   icon: const Icon(Icons.add),
                   label: Text('New ${game.label.toLowerCase()}'),

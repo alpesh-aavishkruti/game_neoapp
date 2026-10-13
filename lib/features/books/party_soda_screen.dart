@@ -8,6 +8,7 @@ import '../../data/models/match.dart';
 import '../../shared/widgets/async_view.dart';
 import '../dashboard/widgets/entry_row.dart';
 import '../money/ledger_screen.dart';
+import 'party_book_screen.dart';
 
 final _partySodaProvider = FutureProvider.autoDispose
     .family<List<BetEntry>, ({GameMatch match, int partyId})>((ref, args) {
@@ -38,6 +39,25 @@ class PartySodaScreen extends ConsumerWidget {
           builder: (_) => PartySodaScreen(match: match, row: row),
         ),
       );
+
+  /// Ticks one bet off, the same tick the party book shows on this line.
+  Future<void> _toggle(
+    WidgetRef ref,
+    ({GameMatch match, int partyId}) args,
+    BetEntry entry,
+  ) async {
+    try {
+      await ref.read(bookRepositoryProvider).setChecked(
+            match: match,
+            entryIds: [entry.id],
+            checked: !entry.isChecked,
+          );
+    } finally {
+      ref.invalidate(_partySodaProvider(args));
+      // The party book shows this line's tick, so it has to be re-read too.
+      ref.invalidate(matchBookProvider((match: match, kind: BookKind.party)));
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -76,8 +96,8 @@ class PartySodaScreen extends ConsumerWidget {
                 subjectLabel: match.game == GameType.session
                     ? 'Run / client'
                     : 'Nation / client',
-                // Read-only here: a bet is edited on the board it was placed
-                // from, so there are no buttons to leave room for.
+                // A bet is edited on the board it was placed from; what this
+                // screen adds is the tick, so it keeps the action column.
                 hasActions: false,
               ),
               Expanded(
@@ -85,9 +105,12 @@ class PartySodaScreen extends ConsumerWidget {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 24),
                   itemCount: list.length,
-                  // Read-only: a bet is edited on the board it was placed
-                  // from, so there is one place where that happens.
-                  itemBuilder: (context, i) => EntryRow(entry: list[i]),
+                  // A bet is edited on the board it was placed from; here it
+                  // can only be ticked off against the book.
+                  itemBuilder: (context, i) => EntryRow(
+                    entry: list[i],
+                    onToggleCheck: () => _toggle(ref, args, list[i]),
+                  ),
                 ),
               ),
             ],

@@ -106,7 +106,16 @@ class HavalaScreen extends ConsumerWidget {
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.only(bottom: 96),
             itemCount: list.length,
-            itemBuilder: (context, i) => _HavalaRow(entry: list[i]),
+            itemBuilder: (context, i) => _HavalaRow(
+              entry: list[i],
+              // Tapping a line opens it for changes, the same as the desk's
+              // Edit on the havala list.
+              onTap: () async {
+                final saved =
+                    await HavalaEntrySheet.show(context, editing: list[i]);
+                if (saved == true) ref.invalidate(havalaListProvider);
+              },
+            ),
           ),
         ),
       ),
@@ -115,15 +124,16 @@ class HavalaScreen extends ConsumerWidget {
 }
 
 class _HavalaRow extends StatelessWidget {
-  const _HavalaRow({required this.entry});
+  const _HavalaRow({required this.entry, this.onTap});
 
   final Havala entry;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final book = context.book;
 
-    return Container(
+    final row = Container(
       decoration: BoxDecoration(
         color: context.scheme.surface,
         border: Border(bottom: BorderSide(color: book.line)),
@@ -179,6 +189,9 @@ class _HavalaRow extends StatelessWidget {
         ],
       ),
     );
+
+    if (onTap == null) return row;
+    return InkWell(onTap: onTap, child: row);
   }
 }
 

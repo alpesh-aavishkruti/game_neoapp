@@ -9,6 +9,7 @@ import '../../data/models/party.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/field_label.dart';
 import 'havala_screen.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 final _balancesProvider = FutureProvider.autoDispose<List<PartyBalanceRow>>(
   (ref) => ref.watch(havalaRepositoryProvider).partiesWithBalances(),
@@ -145,7 +146,7 @@ class _AutoHavalaSheetState extends ConsumerState<AutoHavalaSheet> {
                         flex: 3,
                         child: LabelledField(
                           label: 'Settle against',
-                          child: DropdownButtonFormField<PartyBalanceRow>(
+                          child: AppDropdown<PartyBalanceRow>(
                             initialValue: _target,
                             isExpanded: true,
                             hint: const Text('Choose a party'),

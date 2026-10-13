@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/util/money.dart';
 import '../../../data/models/bet_entry.dart';
+import '../../../shared/widgets/check_tick.dart';
 
 /// One line of the book.
 ///
@@ -16,11 +17,16 @@ class EntryRow extends StatelessWidget {
     required this.entry,
     this.onEdit,
     this.onDelete,
+    this.onToggleCheck,
   });
 
   final BetEntry entry;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
+
+  /// Ticking a bet off against the book. Only the drill-down offers this; on
+  /// the board itself a row is placed and edited, not reconciled.
+  final VoidCallback? onToggleCheck;
 
   @override
   Widget build(BuildContext context) {
@@ -115,6 +121,8 @@ class EntryRow extends StatelessWidget {
               ),
             ),
           ),
+          if (onToggleCheck != null)
+            CheckTick(checked: entry.isChecked, onTap: onToggleCheck!),
           if (canAct) ...[
             const SizedBox(width: 2),
             _RowAction(

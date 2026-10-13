@@ -9,6 +9,7 @@ import '../../data/models/party.dart';
 import '../../shared/widgets/field_label.dart';
 import '../matches/match_providers.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 /// Adding a party, or correcting one.
 ///
@@ -352,7 +353,7 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
                   builder: (context, ref, _) {
                     final rows =
                         ref.watch(masterRowsProvider('/master/party-categories/'));
-                    return DropdownButtonFormField<int?>(
+                    return AppDropdown<int?>(
                       initialValue: _categoryId,
                       isExpanded: true,
                       hint: const Text('None'),
@@ -385,7 +386,7 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
                     final others = parties
                         .where((p) => p.id != widget.editing?.id)
                         .toList();
-                    return DropdownButtonFormField<int?>(
+                    return AppDropdown<int?>(
                       initialValue: others.any((p) => p.id == _refMemberId)
                           ? _refMemberId
                           : null,

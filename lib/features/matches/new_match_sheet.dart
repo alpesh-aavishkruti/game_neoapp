@@ -96,6 +96,10 @@ class _NewMatchSheetState extends ConsumerState<NewMatchSheet> {
           'game': widget.game.code,
           'nation_a': a,
           'nation_b': b,
+          // The desk opens every new match with commission on; the server
+          // default is off, so say it here rather than leaving a match that
+          // silently books no commission.
+          'commission_enabled': true,
           if (_isTest && _nationC.text.trim().isNotEmpty)
             'nation_c': _nationC.text.trim().toUpperCase(),
         });

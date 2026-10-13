@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/app_time.dart';
+import '../../core/util/havala_description.dart';
+import '../../data/models/havala.dart';
 import '../../data/models/party.dart';
 import '../../shared/widgets/field_label.dart';
 import '../../shared/widgets/party_field.dart';
@@ -16,13 +18,17 @@ import 'havala_screen.dart';
 /// below, an arrow between them. There is no way to misread which direction
 /// the money went, which is the mistake this form exists to prevent.
 class HavalaEntrySheet extends ConsumerStatefulWidget {
-  const HavalaEntrySheet({super.key});
+  const HavalaEntrySheet({super.key, this.editing});
 
-  static Future<bool?> show(BuildContext context) => showModalBottomSheet<bool>(
+  /// The havala being changed, when this is an edit rather than a new one.
+  final Havala? editing;
+
+  static Future<bool?> show(BuildContext context, {Havala? editing}) =>
+      showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
-        builder: (_) => const HavalaEntrySheet(),
+        builder: (_) => HavalaEntrySheet(editing: editing),
       );
 
   @override
@@ -33,9 +39,18 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
   final _amount = TextEditingController();
   final _note = TextEditingController();
 
+  /// The desk's working: qty at a rate. Filling both writes the amount, and
+  /// the narration carries the working so the two systems read alike.
+  final _qty = TextEditingController();
+  final _rate = TextEditingController();
+
   Party? _from;
   Party? _to;
   DateTime _date = DateTime.now();
+
+  /// A Dena havala is held as a minus figure. The amount box shows it, and an
+  /// edit that only renamed a party must not turn it into a Lena one.
+  bool get _isEdit => widget.editing != null;
 
   /// Fetched up front so the operator sees which voucher this will become
   /// before saving, the same as on the desk.
@@ -47,7 +62,32 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
   @override
   void initState() {
     super.initState();
-    _loadVoucherNo();
+    final editing = widget.editing;
+    if (editing == null) {
+      _loadVoucherNo();
+      return;
+    }
+    _voucherNo = editing.voucherNo;
+    final narration =
+        HavalaDescription.parse(editing.description, editing.amount);
+    _qty.text = narration.qty;
+    _rate.text = narration.rate;
+    // Plain digits with a hyphen minus, not Money's typographic one, so the
+    // box can be parsed back when it is saved.
+    _amount.text = editing.amount.toStringAsFixed(2);
+    _note.text = narration.note;
+    _date = editing.date ?? DateTime.now();
+  }
+
+  /// Fills the party boxes once the list has arrived, since an edit knows the
+  /// ids before it knows the parties.
+  void _adoptParties(List<Party> list) {
+    final editing = widget.editing;
+    if (editing == null || (_from != null && _to != null)) return;
+    for (final party in list) {
+      if (party.id == editing.fromId) _from ??= party;
+      if (party.id == editing.toId) _to ??= party;
+    }
   }
 
   Future<void> _loadVoucherNo() async {
@@ -63,8 +103,23 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
   void dispose() {
     _amount.dispose();
     _note.dispose();
+    _qty.dispose();
+    _rate.dispose();
     super.dispose();
   }
+
+  /// Keeps the amount and the narration in step with the working.
+  void _workingChanged() {
+    final amount = HavalaDescription.amountFor(_qty.text, _rate.text);
+    if (amount != null) _amount.text = amount.toStringAsFixed(2);
+    setState(() {});
+  }
+
+  String get _description => HavalaDescription.compose(
+        qty: _qty.text,
+        rate: _rate.text,
+        note: _note.text,
+      );
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
@@ -84,7 +139,7 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
       _ when _from == null => 'Choose who is paying',
       _ when _to == null => 'Choose who is receiving',
       _ when _from!.id == _to!.id => 'A havala needs two different parties',
-      _ when amount == null || amount <= 0 => 'Enter the amount',
+      _ when amount == null || amount == 0 => 'Enter the amount',
       _ => null,
     };
     if (problem != null) {
@@ -98,14 +153,27 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
     });
 
     try {
-      await ref.read(havalaRepositoryProvider).create(
-            fromPartyId: _from!.id,
-            toPartyId: _to!.id,
-            amount: amount!,
-            date: _date,
-            description: _note.text,
-            voucherNo: _voucherNo,
-          );
+      final repository = ref.read(havalaRepositoryProvider);
+      final editing = widget.editing;
+      if (editing != null) {
+        await repository.update(
+          id: editing.id,
+          fromPartyId: _from!.id,
+          toPartyId: _to!.id,
+          amount: amount!,
+          date: _date,
+          description: _description,
+        );
+      } else {
+        await repository.create(
+          fromPartyId: _from!.id,
+          toPartyId: _to!.id,
+          amount: amount!,
+          date: _date,
+          description: _description,
+          voucherNo: _voucherNo,
+        );
+      }
       if (mounted) Navigator.of(context).pop(true);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
@@ -141,7 +209,10 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
                   ),
                 ),
               ),
-              Text('New havala', style: context.text.titleMedium),
+              Text(
+                _isEdit ? 'Edit havala' : 'New havala',
+                style: context.text.titleMedium,
+              ),
               const SizedBox(height: 2),
               Text(
                 _voucherNo == null
@@ -163,7 +234,9 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
                     style: context.text.bodyMedium?.copyWith(color: book.down),
                   ),
                 ),
-                data: (list) => Column(
+                data: (list) {
+                  _adoptParties(list);
+                  return Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     LabelledField(
@@ -187,7 +260,8 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
                       ),
                     ),
                   ],
-                ),
+                  );
+                },
               ),
 
               const SizedBox(height: 14),
@@ -206,6 +280,7 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
                           fontWeight: FontWeight.w700,
                         ),
                         decoration: const InputDecoration(hintText: '0'),
+                        onChanged: (_) => setState(() {}),
                       ),
                     ),
                   ),
@@ -236,6 +311,59 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
                             ],
                           ),
                         ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+              // The desk's working. Filling both fills the amount above and
+              // writes "qty X rate" into the narration.
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: LabelledField(
+                      label: 'Qty',
+                      child: TextField(
+                        controller: _qty,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true, signed: true),
+                        style: const TextStyle(
+                          fontFamily: 'Roboto Mono',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        decoration: const InputDecoration(hintText: '0'),
+                        onChanged: (_) => _workingChanged(),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 13),
+                    child: Text(
+                      'X',
+                      style: context.text.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: book.down,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: LabelledField(
+                      label: 'Rate',
+                      child: TextField(
+                        controller: _rate,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true, signed: true),
+                        style: const TextStyle(
+                          fontFamily: 'Roboto Mono',
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        decoration: const InputDecoration(hintText: '0'),
+                        onChanged: (_) => _workingChanged(),
                       ),
                     ),
                   ),

@@ -236,7 +236,7 @@ class _MasterListScreenState extends ConsumerState<MasterListScreen> {
 
     try {
       await ref.read(apiClientProvider).delete('${widget.path}${row['id']}/');
-      ref.invalidate(masterRowsProvider(widget.path));
+      refreshMasterRows(ref, widget.path);
     } on ApiException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {

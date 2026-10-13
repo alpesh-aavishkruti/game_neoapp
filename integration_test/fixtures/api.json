@@ -1,0 +1,3288 @@
+{
+ "POST /login": {
+  "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc5MTE4NDEwOSwiaWF0IjoxNzkxMTgzMjA5LCJqdGkiOiIzZjRjMmZiYTIzMjY0ZTQ2OTc2YWM2Njg4ZjMwOTVhYiIsInByb2ZpbGVfaWQiOjIsInVzZXJfaWQiOjJ9.o-DrAPacH_Qg-kEF0RpF2t-kjFwoNAG3b6ib8Qxb5Tw",
+  "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzkzNzc1MjA5LCJpYXQiOjE3OTExODMyMDksImp0aSI6IjJlYThkMWU0MjU0NjQ0NGZiY2I0ZDBjODQyNTg5NmMxIiwicHJvZmlsZV9pZCI6MiwidXNlcl9pZCI6Mn0.qRiEYulV5rwWTMSwcosjMrOnaNYdw2aKrwhviwZOoc8",
+  "profile": {
+   "id": 1,
+   "user_code": null,
+   "user_short_name": null,
+   "auto_logout_minutes": 15,
+   "phone": null,
+   "user": {
+    "id": 2,
+    "email": null,
+    "username": "demo",
+    "first_name": "Demo",
+    "last_name": "Desk",
+    "is_2fa_enabled": false,
+    "two_fa_method": "NONE"
+   },
+   "role": null,
+   "organization": 1,
+   "is_org_admin": true,
+   "created_at": "2026-10-05T12:23:28.639723+05:30",
+   "updated_at": "2026-10-05T12:23:28.639740+05:30"
+  }
+ },
+ "GET /permission": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "message": "Permission fetched successfully.",
+   "data": []
+  }
+ },
+ "GET /organization-settings": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "id": 1,
+    "name": "Demo Traders",
+    "company_name": "",
+    "address_line1": "",
+    "address_line2": "",
+    "city": "",
+    "pin": "",
+    "state": "",
+    "country": "",
+    "phone": "",
+    "email": "",
+    "remarks": "",
+    "figure_sign": 1,
+    "interest_post_member": null,
+    "filter_type": "contains",
+    "filter_type_display": "Contains",
+    "back_days_allowed": 365,
+    "from_mail_id": "",
+    "bombay_row_after": 0,
+    "bombay_value": "0.00",
+    "auto_member": null,
+    "is_inflow_only": false,
+    "is_multiple_warehouse": false,
+    "from_mail_password": "",
+    "default_client_password": ""
+   },
+   "message": null
+  }
+ },
+ "GET /master/matches/oneday_active_match/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "action_permissions": {
+    "view": [
+     73,
+     73,
+     76,
+     76,
+     76,
+     76,
+     75,
+     73,
+     73,
+     71,
+     74,
+     74,
+     74,
+     73
+    ],
+    "add": [
+     70
+    ],
+    "update": [
+     71,
+     71
+    ],
+    "delete": [
+     72
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   },
+   "error": 200,
+   "data": [
+    {
+     "id": 1,
+     "game": "ONE_DAY",
+     "nation_a": "IND",
+     "nation_b": "WI",
+     "nation_c": null,
+     "is_active": true,
+     "match_name": "IND VS WI (ONE_DAY)",
+     "close_date": null,
+     "commission_enabled": true,
+     "commission_percentage": "0.00",
+     "ptrn_enabled": true,
+     "party_book_enabled": true,
+     "created_at": "2026-10-05T12:23:28.648785+05:30",
+     "updated_at": "2026-10-05T12:23:28.648801+05:30",
+     "cup_name": null,
+     "nation1": null,
+     "nation2": null,
+     "nation3": null,
+     "nation4": null,
+     "nation5": null,
+     "nation6": null,
+     "nation7": null,
+     "nation8": null,
+     "nation9": null,
+     "nation10": null
+    }
+   ],
+   "message": "Active Match Masters retrieved successfully",
+   "errors": []
+  }
+ },
+ "GET /master/matches/session_active_match/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "action_permissions": {
+    "view": [
+     73,
+     73,
+     76,
+     76,
+     76,
+     76,
+     75,
+     73,
+     73,
+     71,
+     74,
+     74,
+     74,
+     73
+    ],
+    "add": [
+     70
+    ],
+    "update": [
+     71,
+     71
+    ],
+    "delete": [
+     72
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   },
+   "error": 200,
+   "data": [
+    {
+     "id": 2,
+     "game": "SESSION",
+     "nation_a": "IND 20 OVER",
+     "nation_b": "50",
+     "nation_c": null,
+     "is_active": true,
+     "match_name": "IND 20 OVER VS 50 (SESSION)",
+     "close_date": null,
+     "commission_enabled": true,
+     "commission_percentage": "0.00",
+     "ptrn_enabled": true,
+     "party_book_enabled": true,
+     "created_at": "2026-10-05T12:23:28.649210+05:30",
+     "updated_at": "2026-10-05T12:23:28.649227+05:30",
+     "cup_name": null,
+     "nation1": null,
+     "nation2": null,
+     "nation3": null,
+     "nation4": null,
+     "nation5": null,
+     "nation6": null,
+     "nation7": null,
+     "nation8": null,
+     "nation9": null,
+     "nation10": null
+    }
+   ],
+   "message": "Active Match Masters retrieved successfully",
+   "errors": []
+  }
+ },
+ "GET /master/matches/test_active_match/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "action_permissions": {
+    "view": [
+     73,
+     73,
+     76,
+     76,
+     76,
+     76,
+     75,
+     73,
+     73,
+     71,
+     74,
+     74,
+     74,
+     73
+    ],
+    "add": [
+     70
+    ],
+    "update": [
+     71,
+     71
+    ],
+    "delete": [
+     72
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   },
+   "error": 200,
+   "data": [],
+   "message": "Active Match Masters retrieved successfully",
+   "errors": []
+  }
+ },
+ "GET /master/matches/cup_active_match/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "action_permissions": {
+    "view": [
+     73,
+     73,
+     76,
+     76,
+     76,
+     76,
+     75,
+     73,
+     73,
+     71,
+     74,
+     74,
+     74,
+     73
+    ],
+    "add": [
+     70
+    ],
+    "update": [
+     71,
+     71
+    ],
+    "delete": [
+     72
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   },
+   "error": 200,
+   "data": [],
+   "message": "Active Match Masters retrieved successfully",
+   "errors": []
+  }
+ },
+ "GET /master/parties/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 8,
+   "page": 1,
+   "page_size": 10,
+   "data": [
+    {
+     "id": 8,
+     "organization": 1,
+     "party_code": "SUS",
+     "party_name": "SUSPENSE",
+     "category": [],
+     "city": null,
+     "is_bookie": false,
+     "is_own": false,
+     "show_in_book": true,
+     "rec_int": "0.00",
+     "pay_int": "0.00",
+     "credit_limit": "0.00",
+     "ref_member": null,
+     "mobile": null,
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.643239+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.643256+05:30"
+    },
+    {
+     "id": 7,
+     "organization": 1,
+     "party_code": "PL",
+     "party_name": "PROFIT LOSS",
+     "category": [],
+     "city": null,
+     "is_bookie": false,
+     "is_own": false,
+     "show_in_book": true,
+     "rec_int": "0.00",
+     "pay_int": "0.00",
+     "credit_limit": "0.00",
+     "ref_member": null,
+     "mobile": null,
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.642707+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.642741+05:30"
+    },
+    {
+     "id": 6,
+     "organization": 1,
+     "party_code": "LK",
+     "party_name": "LK PARTNER",
+     "category": [],
+     "city": null,
+     "is_bookie": false,
+     "is_own": false,
+     "show_in_book": true,
+     "rec_int": "0.00",
+     "pay_int": "0.00",
+     "credit_limit": "0.00",
+     "ref_member": null,
+     "mobile": null,
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.642285+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.642303+05:30"
+    },
+    {
+     "id": 5,
+     "organization": 1,
+     "party_code": "PI",
+     "party_name": "PINTU",
+     "category": [],
+     "city": null,
+     "is_bookie": false,
+     "is_own": false,
+     "show_in_book": true,
+     "rec_int": "0.00",
+     "pay_int": "0.00",
+     "credit_limit": "0.00",
+     "ref_member": null,
+     "mobile": null,
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.641909+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.641925+05:30"
+    },
+    {
+     "id": 4,
+     "organization": 1,
+     "party_code": "KV",
+     "party_name": "KAVYA",
+     "category": [],
+     "city": null,
+     "is_bookie": false,
+     "is_own": false,
+     "show_in_book": true,
+     "rec_int": "0.00",
+     "pay_int": "0.00",
+     "credit_limit": "0.00",
+     "ref_member": null,
+     "mobile": null,
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.641571+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.641587+05:30"
+    },
+    {
+     "id": 3,
+     "organization": 1,
+     "party_code": "RA",
+     "party_name": "RAM BHAI",
+     "category": [],
+     "city": null,
+     "is_bookie": false,
+     "is_own": false,
+     "show_in_book": true,
+     "rec_int": "0.00",
+     "pay_int": "0.00",
+     "credit_limit": "0.00",
+     "ref_member": null,
+     "mobile": null,
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.641232+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.641248+05:30"
+    },
+    {
+     "id": 2,
+     "organization": 1,
+     "party_code": "MD",
+     "party_name": "MAHADEV",
+     "category": [],
+     "city": null,
+     "is_bookie": false,
+     "is_own": false,
+     "show_in_book": true,
+     "rec_int": "0.00",
+     "pay_int": "0.00",
+     "credit_limit": "0.00",
+     "ref_member": null,
+     "mobile": null,
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.640869+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.640886+05:30"
+    },
+    {
+     "id": 1,
+     "organization": 1,
+     "party_code": "77",
+     "party_name": "SHIV",
+     "category": [],
+     "city": null,
+     "is_bookie": false,
+     "is_own": false,
+     "show_in_book": true,
+     "rec_int": "0.00",
+     "pay_int": "0.00",
+     "credit_limit": "0.00",
+     "ref_member": null,
+     "mobile": null,
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.640363+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.640380+05:30"
+    }
+   ],
+   "message": "Party Master retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     85,
+     85,
+     88,
+     85,
+     85,
+     85,
+     85,
+     83,
+     83,
+     87,
+     87,
+     86,
+     86,
+     87,
+     89,
+     89,
+     90,
+     90,
+     91,
+     91,
+     92,
+     92,
+     85,
+     89,
+     85
+    ],
+    "add": [
+     82
+    ],
+    "update": [
+     83,
+     83,
+     83,
+     83,
+     83
+    ],
+    "delete": [
+     84
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /master/parties/fetch_all/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "action_permissions": null,
+   "error": 200,
+   "data": [
+    {
+     "id": 8,
+     "party_code": "SUS",
+     "party_name": "SUSPENSE",
+     "city": null,
+     "closing_balance": "0.00",
+     "ref_member": null,
+     "is_active": true,
+     "show_in_book": true
+    },
+    {
+     "id": 7,
+     "party_code": "PL",
+     "party_name": "PROFIT LOSS",
+     "city": null,
+     "closing_balance": "0.00",
+     "ref_member": null,
+     "is_active": true,
+     "show_in_book": true
+    },
+    {
+     "id": 6,
+     "party_code": "LK",
+     "party_name": "LK PARTNER",
+     "city": null,
+     "closing_balance": "0.00",
+     "ref_member": null,
+     "is_active": true,
+     "show_in_book": true
+    },
+    {
+     "id": 5,
+     "party_code": "PI",
+     "party_name": "PINTU",
+     "city": null,
+     "closing_balance": "7500.00",
+     "ref_member": null,
+     "is_active": true,
+     "show_in_book": true
+    },
+    {
+     "id": 4,
+     "party_code": "KV",
+     "party_name": "KAVYA",
+     "city": null,
+     "closing_balance": "10000.00",
+     "ref_member": null,
+     "is_active": true,
+     "show_in_book": true
+    },
+    {
+     "id": 3,
+     "party_code": "RA",
+     "party_name": "RAM BHAI",
+     "city": null,
+     "closing_balance": "-10000.00",
+     "ref_member": null,
+     "is_active": true,
+     "show_in_book": true
+    },
+    {
+     "id": 2,
+     "party_code": "MD",
+     "party_name": "MAHADEV",
+     "city": null,
+     "closing_balance": "-25000.00",
+     "ref_member": null,
+     "is_active": true,
+     "show_in_book": true
+    },
+    {
+     "id": 1,
+     "party_code": "77",
+     "party_name": "SHIV",
+     "city": null,
+     "closing_balance": "17500.00",
+     "ref_member": null,
+     "is_active": true,
+     "show_in_book": true
+    }
+   ],
+   "message": "success",
+   "errors": [],
+   "count": 8
+  }
+ },
+ "GET /master/accounts/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 2,
+   "page": 1,
+   "page_size": 10,
+   "data": [
+    {
+     "id": 1,
+     "account_code": "11111111",
+     "account_name": "GENERAL LEDGER"
+    },
+    {
+     "id": 2,
+     "account_code": "11111112",
+     "account_name": "MARGIN ACCOUNT"
+    }
+   ],
+   "message": "Account Master retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     61,
+     61,
+     61
+    ],
+    "add": [
+     58
+    ],
+    "update": [
+     59,
+     59
+    ],
+    "delete": [
+     60
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /master/parties/view_general/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "given_amounts": [
+     {
+      "party_id": 2,
+      "party_code": "MD",
+      "party_name": "MAHADEV",
+      "category_id": null,
+      "category_ids": [],
+      "amount": 25000.0,
+      "check": false
+     },
+     {
+      "party_id": 3,
+      "party_code": "RA",
+      "party_name": "RAM BHAI",
+      "category_id": null,
+      "category_ids": [],
+      "amount": 10000.0,
+      "check": false
+     }
+    ],
+    "take_amounts": [
+     {
+      "party_id": 1,
+      "party_code": "77",
+      "party_name": "SHIV",
+      "category_id": null,
+      "category_ids": [],
+      "amount": 17500.0,
+      "check": false
+     },
+     {
+      "party_id": 4,
+      "party_code": "KV",
+      "party_name": "KAVYA",
+      "category_id": null,
+      "category_ids": [],
+      "amount": 10000.0,
+      "check": false
+     },
+     {
+      "party_id": 5,
+      "party_code": "PI",
+      "party_name": "PINTU",
+      "category_id": null,
+      "category_ids": [],
+      "amount": 7500.0,
+      "check": false
+     }
+    ],
+    "total_give": 35000.0,
+    "total_take": 35000.0
+   },
+   "message": "View general retrieved successfully"
+  }
+ },
+ "GET /soda/havala/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "action_permissions": {
+    "view": [
+     117,
+     117,
+     114,
+     118,
+     118,
+     115,
+     117
+    ],
+    "add": [
+     114,
+     114
+    ],
+    "update": [
+     115,
+     115
+    ],
+    "delete": [
+     116
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   },
+   "error": 200,
+   "data": [
+    {
+     "id": 3,
+     "created_by": {
+      "id": 2,
+      "username": "demo",
+      "email": null,
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "full_name": "Demo Desk"
+     },
+     "updated_by": null,
+     "deleted_by": null,
+     "created_at": "2026-10-05T12:23:29.808303+05:30",
+     "updated_at": "2026-10-05T12:23:29.808321+05:30",
+     "deleted_at": null,
+     "is_deleted": false,
+     "p_member": 5,
+     "h_member": 1,
+     "p_member_name_display": "PINTU",
+     "p_member_code_display": "PI",
+     "h_member_name_display": "SHIV",
+     "h_member_code_display": "77",
+     "created_by_name": "demo",
+     "is_active": true,
+     "voucher_date": "2026-10-05",
+     "voucher_no": "HAVALA0003",
+     "amount": "750000.0000",
+     "description": "settle",
+     "is_ptrn_entry": false,
+     "is_checked": false,
+     "organization": 1
+    },
+    {
+     "id": 2,
+     "created_by": {
+      "id": 2,
+      "username": "demo",
+      "email": null,
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "full_name": "Demo Desk"
+     },
+     "updated_by": null,
+     "deleted_by": null,
+     "created_at": "2026-10-05T12:23:29.807925+05:30",
+     "updated_at": "2026-10-05T12:23:29.807943+05:30",
+     "deleted_at": null,
+     "is_deleted": false,
+     "p_member": 3,
+     "h_member": 4,
+     "p_member_name_display": "RAM BHAI",
+     "p_member_code_display": "RA",
+     "h_member_name_display": "KAVYA",
+     "h_member_code_display": "KV",
+     "created_by_name": "demo",
+     "is_active": true,
+     "voucher_date": "2026-10-05",
+     "voucher_no": "HAVALA0002",
+     "amount": "-1000000.0000",
+     "description": "bank",
+     "is_ptrn_entry": false,
+     "is_checked": false,
+     "organization": 1
+    },
+    {
+     "id": 1,
+     "created_by": {
+      "id": 2,
+      "username": "demo",
+      "email": null,
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "full_name": "Demo Desk"
+     },
+     "updated_by": null,
+     "deleted_by": null,
+     "created_at": "2026-10-05T12:23:29.807451+05:30",
+     "updated_at": "2026-10-05T12:23:29.807471+05:30",
+     "deleted_at": null,
+     "is_deleted": false,
+     "p_member": 1,
+     "h_member": 2,
+     "p_member_name_display": "SHIV",
+     "p_member_code_display": "77",
+     "h_member_name_display": "MAHADEV",
+     "h_member_code_display": "MD",
+     "created_by_name": "demo",
+     "is_active": true,
+     "voucher_date": "2026-10-05",
+     "voucher_no": "HAVALA0001",
+     "amount": "2500000.0000",
+     "description": "cash",
+     "is_ptrn_entry": false,
+     "is_checked": false,
+     "organization": 1
+    }
+   ],
+   "message": "Havala retrieved successfully",
+   "errors": []
+  }
+ },
+ "GET /soda/havala/get_latest_item_code/": {
+  "status": 404,
+  "body": {
+   "status": false,
+   "error": "Document Number Format for 'havala' not found."
+  }
+ },
+ "GET /master/matches/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 2,
+   "page": 1,
+   "page_size": 10,
+   "data": [
+    {
+     "id": 2,
+     "organization": {
+      "id": 1,
+      "name": "Demo Traders"
+     },
+     "game": "SESSION",
+     "nation_a": "IND 20 OVER",
+     "nation_b": "50",
+     "nation_c": null,
+     "is_active": true,
+     "win_nation": null,
+     "close_date": null,
+     "closed_by_user": null,
+     "commission_enabled": true,
+     "commission_percentage": "0.00",
+     "ptrn_enabled": true,
+     "party_book_enabled": true,
+     "created_at": "2026-10-05T12:23:28.649210+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.649227+05:30",
+     "cup_name": null,
+     "nation1": null,
+     "nation2": null,
+     "nation3": null,
+     "nation4": null,
+     "nation5": null,
+     "nation6": null,
+     "nation7": null,
+     "nation8": null,
+     "nation9": null,
+     "nation10": null
+    },
+    {
+     "id": 1,
+     "organization": {
+      "id": 1,
+      "name": "Demo Traders"
+     },
+     "game": "ONE_DAY",
+     "nation_a": "IND",
+     "nation_b": "WI",
+     "nation_c": null,
+     "is_active": true,
+     "win_nation": null,
+     "close_date": null,
+     "closed_by_user": null,
+     "commission_enabled": true,
+     "commission_percentage": "0.00",
+     "ptrn_enabled": true,
+     "party_book_enabled": true,
+     "created_at": "2026-10-05T12:23:28.648785+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.648801+05:30",
+     "cup_name": null,
+     "nation1": null,
+     "nation2": null,
+     "nation3": null,
+     "nation4": null,
+     "nation5": null,
+     "nation6": null,
+     "nation7": null,
+     "nation8": null,
+     "nation9": null,
+     "nation10": null
+    }
+   ],
+   "message": "Match Master retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     73,
+     73,
+     76,
+     76,
+     76,
+     76,
+     75,
+     73,
+     73,
+     71,
+     74,
+     74,
+     74,
+     73
+    ],
+    "add": [
+     70
+    ],
+    "update": [
+     71,
+     71
+    ],
+    "delete": [
+     72
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /master/cups/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 0,
+   "page": 1,
+   "page_size": 10,
+   "data": [],
+   "message": "Cup Master retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     65,
+     65,
+     63,
+     63,
+     65,
+     65
+    ],
+    "add": [
+     62
+    ],
+    "update": [
+     63,
+     63
+    ],
+    "delete": [
+     64
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /master/brokerages/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 10,
+   "page": 1,
+   "page_size": 10,
+   "data": [
+    {
+     "id": 10,
+     "organization": 1,
+     "party": {
+      "id": 5,
+      "party_name": "PINTU",
+      "party_code": "PI"
+     },
+     "date": "2026-10-05",
+     "game_code": "SESSION",
+     "comm_percent": "3.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.648244+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.648261+05:30"
+    },
+    {
+     "id": 9,
+     "organization": 1,
+     "party": {
+      "id": 5,
+      "party_name": "PINTU",
+      "party_code": "PI"
+     },
+     "date": "2026-10-05",
+     "game_code": "ONE_DAY",
+     "comm_percent": "2.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.647546+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.647588+05:30"
+    },
+    {
+     "id": 8,
+     "organization": 1,
+     "party": {
+      "id": 4,
+      "party_name": "KAVYA",
+      "party_code": "KV"
+     },
+     "date": "2026-10-05",
+     "game_code": "SESSION",
+     "comm_percent": "3.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.647006+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.647024+05:30"
+    },
+    {
+     "id": 7,
+     "organization": 1,
+     "party": {
+      "id": 4,
+      "party_name": "KAVYA",
+      "party_code": "KV"
+     },
+     "date": "2026-10-05",
+     "game_code": "ONE_DAY",
+     "comm_percent": "2.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.646407+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.646423+05:30"
+    },
+    {
+     "id": 6,
+     "organization": 1,
+     "party": {
+      "id": 3,
+      "party_name": "RAM BHAI",
+      "party_code": "RA"
+     },
+     "date": "2026-10-05",
+     "game_code": "SESSION",
+     "comm_percent": "3.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.646008+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.646024+05:30"
+    },
+    {
+     "id": 5,
+     "organization": 1,
+     "party": {
+      "id": 3,
+      "party_name": "RAM BHAI",
+      "party_code": "RA"
+     },
+     "date": "2026-10-05",
+     "game_code": "ONE_DAY",
+     "comm_percent": "2.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.645610+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.645627+05:30"
+    },
+    {
+     "id": 4,
+     "organization": 1,
+     "party": {
+      "id": 2,
+      "party_name": "MAHADEV",
+      "party_code": "MD"
+     },
+     "date": "2026-10-05",
+     "game_code": "SESSION",
+     "comm_percent": "3.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.645207+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.645223+05:30"
+    },
+    {
+     "id": 3,
+     "organization": 1,
+     "party": {
+      "id": 2,
+      "party_name": "MAHADEV",
+      "party_code": "MD"
+     },
+     "date": "2026-10-05",
+     "game_code": "ONE_DAY",
+     "comm_percent": "2.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.644808+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.644824+05:30"
+    },
+    {
+     "id": 2,
+     "organization": 1,
+     "party": {
+      "id": 1,
+      "party_name": "SHIV",
+      "party_code": "77"
+     },
+     "date": "2026-10-05",
+     "game_code": "SESSION",
+     "comm_percent": "3.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.644396+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.644413+05:30"
+    },
+    {
+     "id": 1,
+     "organization": 1,
+     "party": {
+      "id": 1,
+      "party_name": "SHIV",
+      "party_code": "77"
+     },
+     "date": "2026-10-05",
+     "game_code": "ONE_DAY",
+     "comm_percent": "2.00",
+     "comm_code": null,
+     "comm_code_percent": "0.00",
+     "partner1": {
+      "id": 6,
+      "party_name": "LK PARTNER",
+      "party_code": "LK"
+     },
+     "partner1_percent": "5.00",
+     "partner2": null,
+     "partner2_type": null,
+     "partner2_percent": "0.00",
+     "partner3": null,
+     "partner3_type": null,
+     "partner3_percent": "0.00",
+     "partner4": null,
+     "partner4_type": null,
+     "partner4_percent": "0.00",
+     "partner5": null,
+     "partner5_type": null,
+     "partner5_percent": "0.00",
+     "is_active": true,
+     "created_at": "2026-10-05T12:23:28.643869+05:30",
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "updated_at": "2026-10-05T12:23:28.643886+05:30"
+    }
+   ],
+   "message": "Party Brokerage retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     97,
+     97,
+     94,
+     95,
+     97
+    ],
+    "add": [
+     94
+    ],
+    "update": [
+     95,
+     95
+    ],
+    "delete": [
+     96
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /master/party-categories/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 0,
+   "page": 1,
+   "page_size": 10,
+   "data": [],
+   "message": "Party Category retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     80,
+     80,
+     81,
+     80
+    ],
+    "add": [
+     77
+    ],
+    "update": [
+     78,
+     78
+    ],
+    "delete": [
+     79
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /employee/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 1,
+   "page": 1,
+   "page_size": 10,
+   "data": [
+    {
+     "id": 1,
+     "user_code": null,
+     "user_short_name": null,
+     "auto_logout_minutes": 15,
+     "phone": null,
+     "user": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "role": null,
+     "organization": 1,
+     "created_by": {
+      "id": 2,
+      "email": null,
+      "username": "demo",
+      "first_name": "Demo",
+      "last_name": "Desk",
+      "is_2fa_enabled": false,
+      "two_fa_method": "NONE"
+     },
+     "updated_by": null,
+     "created_at": "2026-10-05T12:23:28.639723+05:30",
+     "updated_at": "2026-10-05T12:23:28.639740+05:30"
+    }
+   ],
+   "message": "Employee retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     53,
+     53,
+     51,
+     53
+    ],
+    "add": [
+     50
+    ],
+    "update": [
+     51,
+     51
+    ],
+    "delete": [
+     52
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /role/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 0,
+   "page": 1,
+   "page_size": 10,
+   "data": [],
+   "message": "Role retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     32,
+     32,
+     32,
+     33,
+     32
+    ],
+    "add": [
+     29,
+     29
+    ],
+    "update": [
+     30,
+     30
+    ],
+    "delete": [
+     31
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /soda/edit-logs/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "count": 0,
+   "data": []
+  }
+ },
+ "GET /soda/recycle-bin/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "count": 0,
+   "data": [],
+   "message": "No deleted records found!"
+  }
+ },
+ "GET /soda/opening-balances/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 0,
+   "page": 1,
+   "page_size": 10,
+   "data": [],
+   "message": "Opening Balance retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     134,
+     134,
+     131,
+     134
+    ],
+    "add": [
+     131
+    ],
+    "update": [
+     132,
+     132
+    ],
+    "delete": [
+     133
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /soda/clearing-jv/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 0,
+   "page": 1,
+   "page_size": 10,
+   "data": [],
+   "message": "Clearing Journal retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     105,
+     105,
+     102,
+     105
+    ],
+    "add": [
+     102
+    ],
+    "update": [
+     103,
+     103
+    ],
+    "delete": [
+     104
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /soda/inflow-clearing-jv/": {
+  "status": 200,
+  "body": {
+   "next": null,
+   "previous": null,
+   "count": 0,
+   "page": 1,
+   "page_size": 10,
+   "data": [],
+   "message": "Inflow Clearing Journal retrieved successfully",
+   "status": true,
+   "action_permissions": {
+    "view": [
+     122,
+     122,
+     122
+    ],
+    "add": [
+     119
+    ],
+    "update": [
+     120,
+     120
+    ],
+    "delete": [
+     121
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   }
+  }
+ },
+ "GET /master/document-formats/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "action_permissions": {
+    "view": [
+     69,
+     69,
+     69,
+     69
+    ],
+    "add": [
+     66
+    ],
+    "update": [
+     67,
+     67
+    ],
+    "delete": [
+     68
+    ],
+    "special": [],
+    "export": [],
+    "import": [],
+    "approve": [],
+    "payment": [],
+    "fetch_all": []
+   },
+   "error": 200,
+   "data": [],
+   "message": "No Document Number Format data found!",
+   "errors": []
+  }
+ },
+ "GET /master/parties/1/ledger/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "party_id": 1,
+    "party_code": "77",
+    "party_name": "SHIV",
+    "balance": 17500.0,
+    "final_closing_balance": 17500.0,
+    "entries": [
+     {
+      "id": 200001,
+      "original_id": 1,
+      "source": "havala",
+      "voucher_id": null,
+      "vch_date": "05-10-2026",
+      "cr_amount": 25000.0,
+      "dr_amount": 0.0,
+      "description": "MD : cash",
+      "vch_type": "RGML",
+      "vch_no": "HAVALA0001",
+      "created_by": "DEMO",
+      "created_date": "05-10-2026 12:23",
+      "check": false,
+      "mem_telly": false,
+      "account_code": "11111111",
+      "account_name": "GENERAL LEDGER",
+      "daybook_code": "03251",
+      "is_edited": false,
+      "last_edited_at": null,
+      "closing_bal": 25000.0
+     },
+     {
+      "id": 250003,
+      "original_id": 3,
+      "source": "havala",
+      "voucher_id": null,
+      "vch_date": "05-10-2026",
+      "cr_amount": 0.0,
+      "dr_amount": -7500.0,
+      "description": "PI : settle",
+      "vch_type": "RGML",
+      "vch_no": "HAVALA0003",
+      "created_by": "DEMO",
+      "created_date": "05-10-2026 12:23",
+      "check": false,
+      "mem_telly": false,
+      "account_code": "11111111",
+      "account_name": "GENERAL LEDGER",
+      "daybook_code": "03251",
+      "is_edited": false,
+      "last_edited_at": null,
+      "closing_bal": 17500.0
+     }
+    ]
+   },
+   "message": "Party ledger retrieved successfully"
+  }
+ },
+ "GET /soda/oneday/1/oneday_soda/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 1,
+    "match_name": "1 : IND VS WI(ONE_DAY) ONE_DAY",
+    "match_date": "10/5/2026",
+    "nation_a": "IND",
+    "nation_b": "WI",
+    "commission_enabled": true,
+    "commission_percentage": "0.00",
+    "ptrn_enabled": true,
+    "party_book_enabled": true,
+    "entries": [
+     {
+      "id": 1,
+      "row_no": 1,
+      "nation": "IND",
+      "bet_type": "L",
+      "bet_label": "I/L",
+      "amount": "1000.00",
+      "rate": "85.00",
+      "nation1_pl": "8074.81",
+      "nation2_pl": "-9500.19",
+      "nation1_total": 8074.81,
+      "nation2_total": -9500.19,
+      "commission_amount": "0.20",
+      "commission_enabled_at_creation": true,
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "client": 1,
+      "client_code": "77",
+      "client_name": "SHIV",
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "is_edited": false,
+      "created_at": "2026-10-05T12:23:29.416562+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29",
+      "updated_at": "2026-10-05T12:23:29.416625+05:30"
+     },
+     {
+      "id": 2,
+      "row_no": 2,
+      "nation": "WI",
+      "bet_type": "K",
+      "bet_label": "W/K",
+      "amount": "500.00",
+      "rate": "120.00",
+      "nation1_pl": "4749.90",
+      "nation2_pl": "-5700.09",
+      "nation1_total": 12824.71,
+      "nation2_total": -15200.28,
+      "commission_amount": "0.10",
+      "commission_enabled_at_creation": true,
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "client": 2,
+      "client_code": "MD",
+      "client_name": "MAHADEV",
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "is_edited": false,
+      "created_at": "2026-10-05T12:23:29.533700+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29",
+      "updated_at": "2026-10-05T12:23:29.533763+05:30"
+     },
+     {
+      "id": 3,
+      "row_no": 3,
+      "nation": "IND",
+      "bet_type": "K",
+      "bet_label": "I/K",
+      "amount": "2000.00",
+      "rate": "76.00",
+      "nation1_pl": "-14440.38",
+      "nation2_pl": "18999.62",
+      "nation1_total": -1615.67,
+      "nation2_total": 3799.34,
+      "commission_amount": "0.40",
+      "commission_enabled_at_creation": true,
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "client": 3,
+      "client_code": "RA",
+      "client_name": "RAM BHAI",
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "is_edited": false,
+      "created_at": "2026-10-05T12:23:29.563450+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29",
+      "updated_at": "2026-10-05T12:23:29.563508+05:30"
+     },
+     {
+      "id": 4,
+      "row_no": 4,
+      "nation": "WI",
+      "bet_type": "L",
+      "bet_label": "W/L",
+      "amount": "700.00",
+      "rate": "83.00",
+      "nation1_pl": "-6650.13",
+      "nation2_pl": "5519.37",
+      "nation1_total": -8265.8,
+      "nation2_total": 9318.71,
+      "commission_amount": "0.14",
+      "commission_enabled_at_creation": true,
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "client": 4,
+      "client_code": "KV",
+      "client_name": "KAVYA",
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "is_edited": false,
+      "created_at": "2026-10-05T12:23:29.602427+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29",
+      "updated_at": "2026-10-05T12:23:29.602488+05:30"
+     },
+     {
+      "id": 5,
+      "row_no": 5,
+      "nation": "IND",
+      "bet_type": "L",
+      "bet_label": "I/L",
+      "amount": "1500.00",
+      "rate": "17.00",
+      "nation1_pl": "2422.21",
+      "nation2_pl": "-14250.28",
+      "nation1_total": -5843.59,
+      "nation2_total": -4931.57,
+      "commission_amount": "0.30",
+      "commission_enabled_at_creation": true,
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "client": 5,
+      "client_code": "PI",
+      "client_name": "PINTU",
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "is_edited": false,
+      "created_at": "2026-10-05T12:23:29.644137+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29",
+      "updated_at": "2026-10-05T12:23:29.644198+05:30"
+     },
+     {
+      "id": 6,
+      "row_no": 6,
+      "nation": "WI",
+      "bet_type": "K",
+      "bet_label": "W/K",
+      "amount": "800.00",
+      "rate": "16.00",
+      "nation1_pl": "7599.85",
+      "nation2_pl": "-1216.15",
+      "nation1_total": 1756.26,
+      "nation2_total": -6147.72,
+      "commission_amount": "0.16",
+      "commission_enabled_at_creation": true,
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "client": 1,
+      "client_code": "77",
+      "client_name": "SHIV",
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "is_edited": false,
+      "created_at": "2026-10-05T12:23:29.695073+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29",
+      "updated_at": "2026-10-05T12:23:29.695132+05:30"
+     }
+    ],
+    "totals": {
+     "nation1_pl": 1756.26,
+     "nation2_pl": -6147.72,
+     "nation1_pl_comm": 1754.96,
+     "nation2_pl_comm": -6149.02,
+     "comm_total": 1.3
+    }
+   },
+   "message": "Match soda retrieved successfully"
+  }
+ },
+ "GET /soda/oneday/1/oneday_totals/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "full_match_totals": {
+     "nation1_pl": 1756.26,
+     "nation2_pl": -6147.72,
+     "avg_rate_n1": -0.29,
+     "avg_rate_n2": -3.5,
+     "comm_total": 1.23
+    },
+    "filtered_totals": {
+     "nation1_pl": 16499.64,
+     "nation2_pl": -11280.36,
+     "avg_rate_n1": -1.46,
+     "avg_rate_n2": -0.68,
+     "comm_total": 0.34
+    },
+    "commission_total": 1.23,
+    "filtered_commission_total": 0.34
+   },
+   "message": "Match totals computed successfully"
+  }
+ },
+ "GET /soda/oneday/1/oneday_partybook/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 1,
+    "match_name": "1 : IND VS WI(ONE_DAY) OneDay",
+    "match_date": "10/5/2026",
+    "parties": [
+     {
+      "party_id": 1,
+      "party_code": "77",
+      "party_name": "SHIV",
+      "code_party_name": "77-SHIV",
+      "nation1_pl": 16500.0,
+      "nation2_pl": -11280.0,
+      "comm": 0.36,
+      "check_status": "none"
+     },
+     {
+      "party_id": 4,
+      "party_code": "KV",
+      "party_name": "KAVYA",
+      "code_party_name": "KV-KAVYA",
+      "nation1_pl": -7000.0,
+      "nation2_pl": 5810.0,
+      "comm": 0.14,
+      "check_status": "none"
+     },
+     {
+      "party_id": 2,
+      "party_code": "MD",
+      "party_name": "MAHADEV",
+      "code_party_name": "MD-MAHADEV",
+      "nation1_pl": 5000.0,
+      "nation2_pl": -6000.0,
+      "comm": 0.1,
+      "check_status": "none"
+     },
+     {
+      "party_id": 5,
+      "party_code": "PI",
+      "party_name": "PINTU",
+      "code_party_name": "PI-PINTU",
+      "nation1_pl": 2550.0,
+      "nation2_pl": -15000.0,
+      "comm": 0.3,
+      "check_status": "none"
+     },
+     {
+      "party_id": 3,
+      "party_code": "RA",
+      "party_name": "RAM BHAI",
+      "code_party_name": "RA-RAM BHAI",
+      "nation1_pl": -15200.0,
+      "nation2_pl": 20000.0,
+      "comm": 0.4,
+      "check_status": "none"
+     }
+    ],
+    "total_a": 1850.0,
+    "total_b": -6470.0
+   },
+   "message": "One Day Party Book retrieved successfully"
+  }
+ },
+ "GET /soda/oneday/1/oneday_bookie_book/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 1,
+    "match_name": "1 : IND VS WI(ONE_DAY) OneDay",
+    "match_date": "10/5/2026",
+    "parties": [],
+    "total_a": 0.0,
+    "total_b": 0.0
+   },
+   "message": "One Day Bookie Book retrieved successfully"
+  }
+ },
+ "GET /soda/oneday/1/oneday_partnerbook/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 1,
+    "match_name": "1 : IND VS WI(ONE_DAY) OneDay",
+    "match_date": "10/5/2026",
+    "parties": [
+     {
+      "party_id": 6,
+      "party_code": "LK",
+      "party_name": "LK PARTNER",
+      "code_party_name": "LK-LK PARTNER",
+      "nation1_pl": 92.44,
+      "nation2_pl": -323.58
+     }
+    ],
+    "total_a": 92.44,
+    "total_b": -323.58
+   },
+   "message": "One Day Partner Book retrieved successfully"
+  }
+ },
+ "GET /soda/oneday/1/settlement/": {
+  "status": 400,
+  "body": {
+   "status": false,
+   "message": "Win nation must be declared to retrieve settlement."
+  }
+ },
+ "GET /soda/session/2/session_soda/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 2,
+    "match_name": "2 : IND 20 OVER VS 50(SESSION) Session",
+    "match_date": "10/5/2026",
+    "entries": [
+     {
+      "id": 1,
+      "row_no": 1,
+      "run": 290,
+      "bet_type": "K",
+      "amount": "50.00",
+      "rate": "100.00",
+      "comm": 15.0,
+      "client_code": "77",
+      "client_name": "SHIV",
+      "member_name": "77 - SHIV",
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "ptrn_pct_at_creation": "5.00",
+      "comm_enabled_at_creation": true,
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "is_edited": false,
+      "updated_at": "2026-10-05T12:23:29.759741+05:30",
+      "created_at": "2026-10-05T12:23:29.759640+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29"
+     },
+     {
+      "id": 2,
+      "row_no": 2,
+      "run": 285,
+      "bet_type": "L",
+      "amount": "100.00",
+      "rate": "100.00",
+      "comm": 30.0,
+      "client_code": "MD",
+      "client_name": "MAHADEV",
+      "member_name": "MD - MAHADEV",
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "ptrn_pct_at_creation": "5.00",
+      "comm_enabled_at_creation": true,
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "is_edited": false,
+      "updated_at": "2026-10-05T12:23:29.784966+05:30",
+      "created_at": "2026-10-05T12:23:29.784871+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29"
+     },
+     {
+      "id": 3,
+      "row_no": 3,
+      "run": 300,
+      "bet_type": "K",
+      "amount": "200.00",
+      "rate": "90.00",
+      "comm": 60.0,
+      "client_code": "RA",
+      "client_name": "RAM BHAI",
+      "member_name": "RA - RAM BHAI",
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "ptrn_pct_at_creation": "5.00",
+      "comm_enabled_at_creation": true,
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "is_edited": false,
+      "updated_at": "2026-10-05T12:23:29.803097+05:30",
+      "created_at": "2026-10-05T12:23:29.803004+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29"
+     }
+    ]
+   },
+   "message": "Session soda retrieved successfully"
+  }
+ },
+ "GET /soda/session/2/session_partybook/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 2,
+    "match_name": "2 : IND 20 OVER VS 50(SESSION) Session",
+    "match_date": "10/5/2026",
+    "parties": [
+     {
+      "party_id": 1,
+      "party_code": "77",
+      "party_name": "SHIV",
+      "code_party_name": "77-SHIV",
+      "k_total": 500.0,
+      "l_total": 0.0,
+      "comm_total": 15.0,
+      "check_status": "none",
+      "runs": [
+       {
+        "run": 275,
+        "amount": 460.75
+       },
+       {
+        "run": 276,
+        "amount": 460.75
+       },
+       {
+        "run": 277,
+        "amount": 460.75
+       },
+       {
+        "run": 278,
+        "amount": 460.75
+       },
+       {
+        "run": 279,
+        "amount": 460.75
+       },
+       {
+        "run": 280,
+        "amount": 460.75
+       },
+       {
+        "run": 281,
+        "amount": 460.75
+       },
+       {
+        "run": 282,
+        "amount": 460.75
+       },
+       {
+        "run": 283,
+        "amount": 460.75
+       },
+       {
+        "run": 284,
+        "amount": 460.75
+       },
+       {
+        "run": 285,
+        "amount": 460.75
+       },
+       {
+        "run": 286,
+        "amount": 460.75
+       },
+       {
+        "run": 287,
+        "amount": 460.75
+       },
+       {
+        "run": 288,
+        "amount": 460.75
+       },
+       {
+        "run": 289,
+        "amount": 460.75
+       },
+       {
+        "run": 290,
+        "amount": -489.25
+       },
+       {
+        "run": 291,
+        "amount": -489.25
+       },
+       {
+        "run": 292,
+        "amount": -489.25
+       },
+       {
+        "run": 293,
+        "amount": -489.25
+       },
+       {
+        "run": 294,
+        "amount": -489.25
+       },
+       {
+        "run": 295,
+        "amount": -489.25
+       },
+       {
+        "run": 296,
+        "amount": -489.25
+       },
+       {
+        "run": 297,
+        "amount": -489.25
+       },
+       {
+        "run": 298,
+        "amount": -489.25
+       },
+       {
+        "run": 299,
+        "amount": -489.25
+       },
+       {
+        "run": 300,
+        "amount": -489.25
+       },
+       {
+        "run": 301,
+        "amount": -489.25
+       },
+       {
+        "run": 302,
+        "amount": -489.25
+       },
+       {
+        "run": 303,
+        "amount": -489.25
+       },
+       {
+        "run": 304,
+        "amount": -489.25
+       },
+       {
+        "run": 305,
+        "amount": -489.25
+       },
+       {
+        "run": 306,
+        "amount": -489.25
+       },
+       {
+        "run": 307,
+        "amount": -489.25
+       },
+       {
+        "run": 308,
+        "amount": -489.25
+       },
+       {
+        "run": 309,
+        "amount": -489.25
+       },
+       {
+        "run": 310,
+        "amount": -489.25
+       }
+      ]
+     },
+     {
+      "party_id": 2,
+      "party_code": "MD",
+      "party_name": "MAHADEV",
+      "code_party_name": "MD-MAHADEV",
+      "k_total": 0.0,
+      "l_total": 1000.0,
+      "comm_total": 30.0,
+      "check_status": "none",
+      "runs": [
+       {
+        "run": 275,
+        "amount": -978.5
+       },
+       {
+        "run": 276,
+        "amount": -978.5
+       },
+       {
+        "run": 277,
+        "amount": -978.5
+       },
+       {
+        "run": 278,
+        "amount": -978.5
+       },
+       {
+        "run": 279,
+        "amount": -978.5
+       },
+       {
+        "run": 280,
+        "amount": -978.5
+       },
+       {
+        "run": 281,
+        "amount": -978.5
+       },
+       {
+        "run": 282,
+        "amount": -978.5
+       },
+       {
+        "run": 283,
+        "amount": -978.5
+       },
+       {
+        "run": 284,
+        "amount": -978.5
+       },
+       {
+        "run": 285,
+        "amount": 921.5
+       },
+       {
+        "run": 286,
+        "amount": 921.5
+       },
+       {
+        "run": 287,
+        "amount": 921.5
+       },
+       {
+        "run": 288,
+        "amount": 921.5
+       },
+       {
+        "run": 289,
+        "amount": 921.5
+       },
+       {
+        "run": 290,
+        "amount": 921.5
+       },
+       {
+        "run": 291,
+        "amount": 921.5
+       },
+       {
+        "run": 292,
+        "amount": 921.5
+       },
+       {
+        "run": 293,
+        "amount": 921.5
+       },
+       {
+        "run": 294,
+        "amount": 921.5
+       },
+       {
+        "run": 295,
+        "amount": 921.5
+       },
+       {
+        "run": 296,
+        "amount": 921.5
+       },
+       {
+        "run": 297,
+        "amount": 921.5
+       },
+       {
+        "run": 298,
+        "amount": 921.5
+       },
+       {
+        "run": 299,
+        "amount": 921.5
+       },
+       {
+        "run": 300,
+        "amount": 921.5
+       },
+       {
+        "run": 301,
+        "amount": 921.5
+       },
+       {
+        "run": 302,
+        "amount": 921.5
+       },
+       {
+        "run": 303,
+        "amount": 921.5
+       },
+       {
+        "run": 304,
+        "amount": 921.5
+       },
+       {
+        "run": 305,
+        "amount": 921.5
+       },
+       {
+        "run": 306,
+        "amount": 921.5
+       },
+       {
+        "run": 307,
+        "amount": 921.5
+       },
+       {
+        "run": 308,
+        "amount": 921.5
+       },
+       {
+        "run": 309,
+        "amount": 921.5
+       },
+       {
+        "run": 310,
+        "amount": 921.5
+       }
+      ]
+     },
+     {
+      "party_id": 3,
+      "party_code": "RA",
+      "party_name": "RAM BHAI",
+      "code_party_name": "RA-RAM BHAI",
+      "k_total": 2000.0,
+      "l_total": 0.0,
+      "comm_total": 60.0,
+      "check_status": "none",
+      "runs": [
+       {
+        "run": 275,
+        "amount": 1843.0
+       },
+       {
+        "run": 276,
+        "amount": 1843.0
+       },
+       {
+        "run": 277,
+        "amount": 1843.0
+       },
+       {
+        "run": 278,
+        "amount": 1843.0
+       },
+       {
+        "run": 279,
+        "amount": 1843.0
+       },
+       {
+        "run": 280,
+        "amount": 1843.0
+       },
+       {
+        "run": 281,
+        "amount": 1843.0
+       },
+       {
+        "run": 282,
+        "amount": 1843.0
+       },
+       {
+        "run": 283,
+        "amount": 1843.0
+       },
+       {
+        "run": 284,
+        "amount": 1843.0
+       },
+       {
+        "run": 285,
+        "amount": 1843.0
+       },
+       {
+        "run": 286,
+        "amount": 1843.0
+       },
+       {
+        "run": 287,
+        "amount": 1843.0
+       },
+       {
+        "run": 288,
+        "amount": 1843.0
+       },
+       {
+        "run": 289,
+        "amount": 1843.0
+       },
+       {
+        "run": 290,
+        "amount": 1843.0
+       },
+       {
+        "run": 291,
+        "amount": 1843.0
+       },
+       {
+        "run": 292,
+        "amount": 1843.0
+       },
+       {
+        "run": 293,
+        "amount": 1843.0
+       },
+       {
+        "run": 294,
+        "amount": 1843.0
+       },
+       {
+        "run": 295,
+        "amount": 1843.0
+       },
+       {
+        "run": 296,
+        "amount": 1843.0
+       },
+       {
+        "run": 297,
+        "amount": 1843.0
+       },
+       {
+        "run": 298,
+        "amount": 1843.0
+       },
+       {
+        "run": 299,
+        "amount": 1843.0
+       },
+       {
+        "run": 300,
+        "amount": -1767.0
+       },
+       {
+        "run": 301,
+        "amount": -1767.0
+       },
+       {
+        "run": 302,
+        "amount": -1767.0
+       },
+       {
+        "run": 303,
+        "amount": -1767.0
+       },
+       {
+        "run": 304,
+        "amount": -1767.0
+       },
+       {
+        "run": 305,
+        "amount": -1767.0
+       },
+       {
+        "run": 306,
+        "amount": -1767.0
+       },
+       {
+        "run": 307,
+        "amount": -1767.0
+       },
+       {
+        "run": 308,
+        "amount": -1767.0
+       },
+       {
+        "run": 309,
+        "amount": -1767.0
+       },
+       {
+        "run": 310,
+        "amount": -1767.0
+       }
+      ]
+     }
+    ]
+   },
+   "message": "Session Party Book retrieved successfully"
+  }
+ },
+ "GET /soda/session/2/session_partnerbook/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 2,
+    "match_name": "2 : IND 20 OVER VS 50(SESSION) Session",
+    "match_date": "10/5/2026",
+    "parties": [
+     {
+      "party_id": 6,
+      "party_code": "LK",
+      "party_name": "LK PARTNER",
+      "code_party_name": "LK-LK PARTNER",
+      "value": 69.75,
+      "value_total": 69.75,
+      "partner_value": 69.75
+     }
+    ]
+   },
+   "message": "Session Partner Book retrieved successfully"
+  }
+ },
+ "GET /soda/session/2/settlement/": {
+  "status": 400,
+  "body": {
+   "status": false,
+   "message": "Declared Run must be specified to retrieve settlement."
+  }
+ },
+ "GET /soda/session/2/session_totals/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "k_total": 2375.0,
+    "l_total": -950.0,
+    "client_kl": 2000.0,
+    "com_total": 99.75,
+    "our_kl": 1425.0
+   },
+   "message": "Session totals computed successfully"
+  }
+ },
+ "GET /soda/oneday/1/oneday_party_soda/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 1,
+    "match_name": "1 : IND VS WI",
+    "win_nation": "",
+    "win_nation_name": "",
+    "party_id": 1,
+    "party_code": "77",
+    "party_name": "SHIV",
+    "entries": [
+     {
+      "id": 1,
+      "row_no": 1,
+      "nation": "IND",
+      "bet_type": "L",
+      "bet_label": "I/L",
+      "amount": "1000.00",
+      "rate": "85.00",
+      "value": 8500.0,
+      "comm": 0.2,
+      "client_code": "77",
+      "client_name": "SHIV",
+      "nation1_pl": "8074.81",
+      "nation2_pl": "-9500.19",
+      "nation1_pl_total": 8074.81,
+      "nation2_pl_total": -9500.19,
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "commission_enabled_at_creation": true,
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "created_at": "2026-10-05T12:23:29.416562+05:30",
+      "updated_at": "2026-10-05T12:23:29.416625+05:30"
+     },
+     {
+      "id": 6,
+      "row_no": 6,
+      "nation": "WI",
+      "bet_type": "K",
+      "bet_label": "W/K",
+      "amount": "800.00",
+      "rate": "16.00",
+      "value": 1280.0,
+      "comm": 0.16,
+      "client_code": "77",
+      "client_name": "SHIV",
+      "nation1_pl": "7599.85",
+      "nation2_pl": "-1216.15",
+      "nation1_pl_total": 15674.66,
+      "nation2_pl_total": -10716.34,
+      "is_ptrn_entry": true,
+      "is_checked": false,
+      "ptrn_enabled_at_creation": true,
+      "commission_enabled_at_creation": true,
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "created_at": "2026-10-05T12:23:29.695073+05:30",
+      "updated_at": "2026-10-05T12:23:29.695132+05:30"
+     }
+    ]
+   },
+   "message": "One Day Party Soda retrieved successfully"
+  }
+ },
+ "GET /soda/session/2/session_party_soda/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 2,
+    "match_name": "2 : IND 20 OVER VS 50 Session",
+    "win_nation": "",
+    "win_nation_name": "",
+    "party_id": 1,
+    "party_code": "77",
+    "party_name": "SHIV",
+    "session_date": "10/5/2026",
+    "entries": [
+     {
+      "id": 1,
+      "row_no": 1,
+      "run": 290,
+      "bet_type": "K",
+      "amount": "50.00",
+      "rate": "100.00",
+      "value": 500.0,
+      "comm": 15.0,
+      "is_checked": false,
+      "client_code": "77",
+      "client_name": "SHIV",
+      "member_name": "77 - SHIV",
+      "run_pl_json": {
+       "190": 460.75,
+       "191": 460.75,
+       "192": 460.75,
+       "193": 460.75,
+       "194": 460.75,
+       "195": 460.75,
+       "196": 460.75,
+       "197": 460.75,
+       "198": 460.75,
+       "199": 460.75,
+       "200": 460.75,
+       "201": 460.75,
+       "202": 460.75,
+       "203": 460.75,
+       "204": 460.75,
+       "205": 460.75,
+       "206": 460.75,
+       "207": 460.75,
+       "208": 460.75,
+       "209": 460.75,
+       "210": 460.75,
+       "211": 460.75,
+       "212": 460.75,
+       "213": 460.75,
+       "214": 460.75,
+       "215": 460.75,
+       "216": 460.75,
+       "217": 460.75,
+       "218": 460.75,
+       "219": 460.75,
+       "220": 460.75,
+       "221": 460.75,
+       "222": 460.75,
+       "223": 460.75,
+       "224": 460.75,
+       "225": 460.75,
+       "226": 460.75,
+       "227": 460.75,
+       "228": 460.75,
+       "229": 460.75,
+       "230": 460.75,
+       "231": 460.75,
+       "232": 460.75,
+       "233": 460.75,
+       "234": 460.75,
+       "235": 460.75,
+       "236": 460.75,
+       "237": 460.75,
+       "238": 460.75,
+       "239": 460.75,
+       "240": 460.75,
+       "241": 460.75,
+       "242": 460.75,
+       "243": 460.75,
+       "244": 460.75,
+       "245": 460.75,
+       "246": 460.75,
+       "247": 460.75,
+       "248": 460.75,
+       "249": 460.75,
+       "250": 460.75,
+       "251": 460.75,
+       "252": 460.75,
+       "253": 460.75,
+       "254": 460.75,
+       "255": 460.75,
+       "256": 460.75,
+       "257": 460.75,
+       "258": 460.75,
+       "259": 460.75,
+       "260": 460.75,
+       "261": 460.75,
+       "262": 460.75,
+       "263": 460.75,
+       "264": 460.75,
+       "265": 460.75,
+       "266": 460.75,
+       "267": 460.75,
+       "268": 460.75,
+       "269": 460.75,
+       "270": 460.75,
+       "271": 460.75,
+       "272": 460.75,
+       "273": 460.75,
+       "274": 460.75,
+       "275": 460.75,
+       "276": 460.75,
+       "277": 460.75,
+       "278": 460.75,
+       "279": 460.75,
+       "280": 460.75,
+       "281": 460.75,
+       "282": 460.75,
+       "283": 460.75,
+       "284": 460.75,
+       "285": 460.75,
+       "286": 460.75,
+       "287": 460.75,
+       "288": 460.75,
+       "289": 460.75,
+       "290": -489.25,
+       "291": -489.25,
+       "292": -489.25,
+       "293": -489.25,
+       "294": -489.25,
+       "295": -489.25,
+       "296": -489.25,
+       "297": -489.25,
+       "298": -489.25,
+       "299": -489.25,
+       "300": -489.25,
+       "301": -489.25,
+       "302": -489.25,
+       "303": -489.25,
+       "304": -489.25,
+       "305": -489.25,
+       "306": -489.25,
+       "307": -489.25,
+       "308": -489.25,
+       "309": -489.25,
+       "310": -489.25,
+       "311": -489.25,
+       "312": -489.25,
+       "313": -489.25,
+       "314": -489.25,
+       "315": -489.25,
+       "316": -489.25,
+       "317": -489.25,
+       "318": -489.25,
+       "319": -489.25,
+       "320": -489.25,
+       "321": -489.25,
+       "322": -489.25,
+       "323": -489.25,
+       "324": -489.25,
+       "325": -489.25,
+       "326": -489.25,
+       "327": -489.25,
+       "328": -489.25,
+       "329": -489.25,
+       "330": -489.25,
+       "331": -489.25,
+       "332": -489.25,
+       "333": -489.25,
+       "334": -489.25,
+       "335": -489.25,
+       "336": -489.25,
+       "337": -489.25,
+       "338": -489.25,
+       "339": -489.25,
+       "340": -489.25,
+       "341": -489.25,
+       "342": -489.25,
+       "343": -489.25,
+       "344": -489.25,
+       "345": -489.25,
+       "346": -489.25,
+       "347": -489.25,
+       "348": -489.25,
+       "349": -489.25,
+       "350": -489.25,
+       "351": -489.25,
+       "352": -489.25,
+       "353": -489.25,
+       "354": -489.25,
+       "355": -489.25,
+       "356": -489.25,
+       "357": -489.25,
+       "358": -489.25,
+       "359": -489.25,
+       "360": -489.25,
+       "361": -489.25,
+       "362": -489.25,
+       "363": -489.25,
+       "364": -489.25,
+       "365": -489.25,
+       "366": -489.25,
+       "367": -489.25,
+       "368": -489.25,
+       "369": -489.25,
+       "370": -489.25,
+       "371": -489.25,
+       "372": -489.25,
+       "373": -489.25,
+       "374": -489.25,
+       "375": -489.25,
+       "376": -489.25,
+       "377": -489.25,
+       "378": -489.25,
+       "379": -489.25,
+       "380": -489.25,
+       "381": -489.25,
+       "382": -489.25,
+       "383": -489.25,
+       "384": -489.25,
+       "385": -489.25,
+       "386": -489.25,
+       "387": -489.25,
+       "388": -489.25,
+       "389": -489.25
+      },
+      "ptrn_enabled_at_creation": true,
+      "ptrn_pct_at_creation": "5.00",
+      "comm_enabled_at_creation": true,
+      "created_by_name": "demo",
+      "updated_by_name": "",
+      "created_at": "2026-10-05T12:23:29.759640+05:30",
+      "updated_at": "2026-10-05T12:23:29.759741+05:30",
+      "created_at_formatted": "10/5/2026 12:23:29",
+      "updated_at_formatted": "10/5/2026 12:23:29"
+     }
+    ]
+   },
+   "message": "Session Party Soda retrieved successfully"
+  }
+ },
+ "GET /soda/session/run_exposure/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 2,
+    "match_name": "IND 20 OVER vs 50 (SESSION)",
+    "run_pl_json": {
+     "292": 2275.25,
+     "293": 2275.25,
+     "294": 2275.25,
+     "295": 2275.25,
+     "296": 2275.25,
+     "297": 2275.25,
+     "298": 2275.25,
+     "299": 2275.25,
+     "300": -1334.75,
+     "301": -1334.75,
+     "302": -1334.75,
+     "303": -1334.75,
+     "304": -1334.75,
+     "305": -1334.75,
+     "306": -1334.75,
+     "307": -1334.75,
+     "308": -1334.75
+    }
+   },
+   "message": "Match run exposure matrix retrieved successfully"
+  }
+ },
+ "GET /soda/session/run_wise/": {
+  "status": 200,
+  "body": {
+   "status": true,
+   "data": {
+    "match_id": 2,
+    "match_name": "IND 20 OVER vs 50 (SESSION)",
+    "run_pl_json": {
+     "275": 1325.25,
+     "276": 1325.25,
+     "277": 1325.25,
+     "278": 1325.25,
+     "279": 1325.25,
+     "280": 1325.25,
+     "281": 1325.25,
+     "282": 1325.25,
+     "283": 1325.25,
+     "284": 1325.25,
+     "285": 3225.25,
+     "286": 3225.25,
+     "287": 3225.25,
+     "288": 3225.25,
+     "289": 3225.25,
+     "290": 2275.25,
+     "291": 2275.25,
+     "292": 2275.25,
+     "293": 2275.25,
+     "294": 2275.25,
+     "295": 2275.25,
+     "296": 2275.25,
+     "297": 2275.25,
+     "298": 2275.25,
+     "299": 2275.25,
+     "300": -1334.75,
+     "301": -1334.75,
+     "302": -1334.75,
+     "303": -1334.75,
+     "304": -1334.75,
+     "305": -1334.75,
+     "306": -1334.75,
+     "307": -1334.75,
+     "308": -1334.75,
+     "309": -1334.75,
+     "310": -1334.75
+    }
+   },
+   "message": "Match run-wise exposure matrix retrieved successfully"
+  }
+ }
+}

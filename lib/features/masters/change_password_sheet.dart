@@ -49,7 +49,9 @@ class _ChangePasswordSheetState extends ConsumerState<ChangePasswordSheet> {
 
     final problem = switch (null) {
       _ when current.isEmpty => 'Enter your current password',
-      _ when next.length < 6 => 'The new password needs at least six characters',
+      // No shape is imposed on a password here: the desk sets what it likes,
+      // digits alone included. Only an empty one is refused.
+      _ when next.isEmpty => 'Enter the new password',
       _ when next == current => 'The new password is the same as the current one',
       _ when _confirm.text != next => 'The two new passwords do not match',
       _ => null,

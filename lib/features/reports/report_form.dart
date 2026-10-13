@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/util/app_time.dart';
 import '../../data/models/party.dart';
 import '../matches/match_providers.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 /// The pieces every report builder is made of.
 ///
@@ -246,7 +247,7 @@ class ReportChoice extends StatelessWidget {
               child: Text(label, style: context.text.labelSmall),
             ),
             Expanded(
-              child: DropdownButtonFormField<String>(
+              child: AppDropdown<String>(
                 initialValue: value,
                 isExpanded: true,
                 decoration: const InputDecoration(isDense: true),

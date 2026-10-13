@@ -13,6 +13,7 @@ import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../matches/match_providers.dart';
 import 'havala_entry_sheet.dart';
+import '../../shared/widgets/app_dropdown.dart';
 
 final bookRepositoryProvider = Provider<BookRepository>(
   (ref) => BookRepository(ref.watch(apiClientProvider)),
@@ -548,7 +549,7 @@ class _LedgerFiltersState extends State<_LedgerFilters> {
             Row(
               children: [
                 Expanded(
-                  child: DropdownButtonFormField<String>(
+                  child: AppDropdown<String>(
                     initialValue: widget.vchType,
                     isExpanded: true,
                     decoration: const InputDecoration(isDense: true),
@@ -568,7 +569,7 @@ class _LedgerFiltersState extends State<_LedgerFilters> {
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: DropdownButtonFormField<_Shown>(
+                  child: AppDropdown<_Shown>(
                     initialValue: widget.shown,
                     isExpanded: true,
                     decoration: const InputDecoration(isDense: true),

@@ -11,6 +11,7 @@ import '../../core/providers.dart';
 import '../../data/repositories/book_repository.dart';
 import '../money/ledger_screen.dart';
 import 'party_soda_screen.dart';
+import '../../shared/widgets/check_tick.dart';
 
 final matchBookProvider =
     FutureProvider.family<MatchBook, ({GameMatch match, BookKind kind})>((ref, args) async {
@@ -135,7 +136,7 @@ class _BookTable extends ConsumerWidget {
         emptyTitle: 'Nothing in the ${kind.label.toLowerCase()} book',
         builder: (data) => Column(
           children: [
-            _BookHeader(sides: sides),
+            _BookHeader(sides: sides, withCheck: kind == BookKind.party),
             Expanded(
               child: ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -149,10 +150,19 @@ class _BookTable extends ConsumerWidget {
                   onTap: BookRepository.supportsPartySoda(match)
                       ? () => PartySodaScreen.open(context, match: match, row: data.rows[i])
                       : null,
+                  // Reconciling is done against the party book, the same as
+                  // at the desk; the other books just report.
+                  onToggleCheck: kind == BookKind.party
+                      ? () => _toggleCheck(ref, data.rows[i])
+                      : null,
                 ),
               ),
             ),
-            _BookTotals(totals: data.totals, sides: sides),
+            _BookTotals(
+              totals: data.totals,
+              sides: sides,
+              withCheck: kind == BookKind.party,
+            ),
           ],
         ),
       ),
@@ -160,40 +170,104 @@ class _BookTable extends ConsumerWidget {
   }
 }
 
+extension on _BookTable {
+  /// Ticks or unticks every bet behind a party's line. A part-ticked line
+  /// ticks the rest, which is what an operator working down the book means.
+  Future<void> _toggleCheck(WidgetRef ref, BookRow row) async {
+    final args = (match: match, kind: kind);
+    try {
+      await ref.read(bookRepositoryProvider).setChecked(
+            match: match,
+            partyId: row.partyId,
+            checked: row.checkState != CheckState.all,
+          );
+    } finally {
+      ref.invalidate(matchBookProvider(args));
+    }
+  }
+}
+
+/// Column shares across the book: the client takes one share, each side
+/// one more, so two long team names still fit in full on a phone.
+const _clientFlex = 3;
+const _sideFlex = 3;
+
+/// The tick's footprint - 22 box plus its 8 padding either side - kept
+/// free in the header and totals so every column lines up with the rows.
+const _checkWidth = 38.0;
+
 class _BookHeader extends StatelessWidget {
-  const _BookHeader({required this.sides});
+  const _BookHeader({required this.sides, required this.withCheck});
 
   final List<String> sides;
+  final bool withCheck;
 
   @override
-  Widget build(BuildContext context) => Container(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        padding: const EdgeInsets.fromLTRB(15, 8, 15, 8),
-        child: Row(
-          children: [
-            Expanded(child: Text('CLIENT', style: context.text.labelSmall)),
-            for (final side in sides.take(3))
-              SizedBox(
-                width: 72,
+  Widget build(BuildContext context) {
+    final label = context.text.labelSmall?.copyWith(letterSpacing: 0.5, height: 1.25);
+    return Container(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      padding: EdgeInsets.fromLTRB(12, 6, withCheck ? 4 : 12, 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(flex: _clientFlex, child: Text('CLIENT', style: label)),
+          for (final side in sides.take(3))
+            Expanded(
+              flex: _sideFlex,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 6),
+                // The whole name, on two lines if it needs them - a side
+                // cut to "AUSTRAL..." leaves the reader guessing.
                 child: Text(
                   side.toUpperCase(),
                   textAlign: TextAlign.right,
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: context.text.labelSmall,
+                  style: label,
                 ),
               ),
-          ],
+            ),
+          if (withCheck) const SizedBox(width: _checkWidth),
+        ],
+      ),
+    );
+  }
+}
+
+/// A figure that shrinks to fit its column rather than being cut short.
+class _Figure extends StatelessWidget {
+  const _Figure(this.text, {required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+        flex: _sideFlex,
+        child: Padding(
+          padding: const EdgeInsets.only(left: 6),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
+            child: Text(text, maxLines: 1, style: style),
+          ),
         ),
       );
 }
 
 class _BookLine extends StatelessWidget {
-  const _BookLine({required this.row, required this.sides, this.onTap});
+  const _BookLine({
+    required this.row,
+    required this.sides,
+    this.onTap,
+    this.onToggleCheck,
+  });
 
   final BookRow row;
   final List<String> sides;
   final VoidCallback? onTap;
+  final VoidCallback? onToggleCheck;
 
   @override
   Widget build(BuildContext context) {
@@ -204,10 +278,11 @@ class _BookLine extends StatelessWidget {
         color: context.scheme.surface,
         border: Border(bottom: BorderSide(color: book.line)),
       ),
-      padding: const EdgeInsets.fromLTRB(15, 10, 15, 10),
+      padding: EdgeInsets.fromLTRB(12, 8, onToggleCheck == null ? 12 : 4, 8),
       child: Row(
         children: [
           Expanded(
+            flex: _clientFlex,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -227,20 +302,20 @@ class _BookLine extends StatelessWidget {
             ),
           ),
           for (var i = 0; i < sides.length && i < 3; i++)
-            SizedBox(
-              width: 72,
-              child: Text(
-                i < row.figures.length ? Money.format(row.figures[i]) : '-',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontFamily: 'Roboto Mono',
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: i < row.figures.length
-                      ? book.forAmount(row.figures[i])
-                      : book.muted,
-                ),
+            _Figure(
+              i < row.figures.length ? Money.format(row.figures[i]) : '-',
+              style: TextStyle(
+                fontFamily: 'Roboto Mono',
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: i < row.figures.length ? book.forAmount(row.figures[i]) : book.muted,
               ),
+            ),
+          if (onToggleCheck != null)
+            CheckTick(
+              checked: row.checkState == CheckState.all,
+              partial: row.checkState == CheckState.some,
+              onTap: onToggleCheck!,
             ),
         ],
       ),
@@ -252,10 +327,11 @@ class _BookLine extends StatelessWidget {
 }
 
 class _BookTotals extends StatelessWidget {
-  const _BookTotals({required this.totals, required this.sides});
+  const _BookTotals({required this.totals, required this.sides, required this.withCheck});
 
   final List<double> totals;
   final List<String> sides;
+  final bool withCheck;
 
   @override
   Widget build(BuildContext context) {
@@ -267,33 +343,31 @@ class _BookTotals extends StatelessWidget {
         border: Border(top: BorderSide(color: book.line)),
       ),
       padding: EdgeInsets.fromLTRB(
-        15,
-        11,
-        15,
-        11 + MediaQuery.paddingOf(context).bottom,
+        12,
+        10,
+        withCheck ? 4 : 12,
+        10 + MediaQuery.paddingOf(context).bottom,
       ),
       child: Row(
         children: [
           Expanded(
+            flex: _clientFlex,
             child: Text(
               'TOTAL',
               style: context.text.labelSmall?.copyWith(color: context.scheme.primary),
             ),
           ),
           for (var i = 0; i < sides.length && i < 3; i++)
-            SizedBox(
-              width: 72,
-              child: Text(
-                i < totals.length ? Money.format(totals[i]) : '-',
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontFamily: 'Roboto Mono',
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w800,
-                  color: i < totals.length ? book.forAmount(totals[i]) : book.muted,
-                ),
+            _Figure(
+              i < totals.length ? Money.format(totals[i]) : '-',
+              style: TextStyle(
+                fontFamily: 'Roboto Mono',
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: i < totals.length ? book.forAmount(totals[i]) : book.muted,
               ),
             ),
+          if (withCheck) const SizedBox(width: _checkWidth),
         ],
       ),
     );

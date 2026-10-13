@@ -1,6 +1,19 @@
 import '../../core/util/money.dart';
 import 'match.dart';
 
+/// How much of a party's line has been ticked off.
+enum CheckState {
+  none,
+  some,
+  all;
+
+  static CheckState parse(dynamic raw) => switch (raw?.toString().toLowerCase()) {
+        'all' => CheckState.all,
+        'some' || 'partial' => CheckState.some,
+        _ => CheckState.none,
+      };
+}
+
 /// One party's line in a book, with a figure per side of the match.
 class BookRow {
   const BookRow({
@@ -9,6 +22,7 @@ class BookRow {
     required this.name,
     required this.figures,
     this.commission = 0,
+    this.checkState = CheckState.none,
   });
 
   final int partyId;
@@ -19,6 +33,10 @@ class BookRow {
   final List<double> figures;
 
   final double commission;
+
+  /// Whether every bet behind this line has been ticked, some of them, or
+  /// none. Kept on the server, so the desk and the phone agree.
+  final CheckState checkState;
 
   factory BookRow.fromJson(Map<String, dynamic> json) {
     // A session's books are ruled K and L rather than by team, and its rows
@@ -33,6 +51,7 @@ class BookRow {
           Money.toDouble(json['l_total']),
         ],
         commission: Money.toDouble(json['comm_total'] ?? json['comm']),
+        checkState: CheckState.parse(json['check_status']),
       );
     }
 
@@ -54,6 +73,7 @@ class BookRow {
       name: (json['party_name'] ?? json['code_party_name'] ?? '').toString().trim(),
       figures: figures,
       commission: Money.toDouble(json['comm']),
+      checkState: CheckState.parse(json['check_status']),
     );
   }
 }

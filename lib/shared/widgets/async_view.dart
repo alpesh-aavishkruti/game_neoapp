@@ -90,6 +90,18 @@ class _Empty extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // A quiet mark so an empty list reads as "nothing yet" at a
+              // glance rather than as a screen that failed to draw.
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: context.book.brandSoft,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.inbox_outlined, size: 26, color: context.scheme.primary),
+              ),
+              const SizedBox(height: 14),
               Text(title, style: context.text.titleMedium),
               if (message != null) ...[
                 const SizedBox(height: 6),
