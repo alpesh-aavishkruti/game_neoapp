@@ -23,6 +23,7 @@ class _FakeBooks implements BookRepository {
   Future<List<BetEntry>> partySoda({
     required GameMatch match,
     required int partyId,
+    bool ownOnly = false,
   }) async =>
       [
         BetEntry.fromJson({

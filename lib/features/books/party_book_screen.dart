@@ -12,9 +12,12 @@ import '../../data/repositories/book_repository.dart';
 import '../money/ledger_screen.dart';
 import 'party_soda_screen.dart';
 import '../../shared/widgets/check_tick.dart';
+import '../../shared/widgets/live_refresh.dart';
 
-final matchBookProvider =
-    FutureProvider.family<MatchBook, ({GameMatch match, BookKind kind})>((ref, args) async {
+final matchBookProvider = FutureProvider.family<MatchBook, ({GameMatch match, BookKind kind})>((
+  ref,
+  args,
+) async {
   return ref.watch(bookRepositoryProvider).book(args.match, args.kind);
 });
 
@@ -49,11 +52,13 @@ class _PartyBookScreenState extends ConsumerState<PartyBookScreen>
   }
 
   Future<void> _share() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Preparing the report…')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Preparing the report…')));
     try {
-      await ref.read(reportSharingProvider).sharePdf(
+      await ref
+          .read(reportSharingProvider)
+          .sharePdf(
             path: '/master/matches/download_match_report/',
             query: {'match_id': widget.match.id},
             name: 'Match ${widget.match.id} ${widget.match.title}',
@@ -67,49 +72,52 @@ class _PartyBookScreenState extends ConsumerState<PartyBookScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(widget.match.title, style: context.text.titleLarge?.copyWith(fontSize: 18)),
-            Text('Books', style: context.text.bodySmall?.copyWith(fontSize: 11)),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.ios_share),
-            tooltip: 'Share match report',
-            onPressed: _share,
+    return LiveRefresh(
+      // The open book follows other operators' bets as they come in.
+      matchId: widget.match.id,
+      onTick: () =>
+          ref.invalidate(matchBookProvider((match: widget.match, kind: _kinds[_tabs.index]))),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.match.title, style: context.text.titleLarge?.copyWith(fontSize: 18)),
+              Text('Books', style: context.text.bodySmall?.copyWith(fontSize: 11)),
+            ],
           ),
-        ],
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(44),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: TabBar(
-              controller: _tabs,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              dividerColor: Colors.transparent,
-              indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(
-                fontFamily: 'Roboto Mono',
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.ios_share),
+              tooltip: 'Share match report',
+              onPressed: _share,
+            ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(44),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: TabBar(
+                controller: _tabs,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.label,
+                labelStyle: const TextStyle(
+                  fontFamily: 'Roboto Mono',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+                tabs: [for (final kind in _kinds) Tab(text: kind.label.toUpperCase())],
               ),
-              tabs: [for (final kind in _kinds) Tab(text: kind.label.toUpperCase())],
             ),
           ),
         ),
-      ),
-      body: TabBarView(
-        controller: _tabs,
-        children: [
-          for (final kind in _kinds)
-            _BookTable(match: widget.match, kind: kind),
-        ],
+        body: TabBarView(
+          controller: _tabs,
+          children: [for (final kind in _kinds) _BookTable(match: widget.match, kind: kind)],
+        ),
       ),
     );
   }
@@ -120,6 +128,12 @@ class _BookTable extends ConsumerWidget {
 
   final GameMatch match;
   final BookKind kind;
+
+  /// Which books carry the reconciling tick: the party book, and the bookie
+  /// book on one day and test matches, as at the desk.
+  bool get _ticks =>
+      kind == BookKind.party ||
+      (kind == BookKind.bookie && (match.game == GameType.oneDay || match.game == GameType.test));
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -136,7 +150,7 @@ class _BookTable extends ConsumerWidget {
         emptyTitle: 'Nothing in the ${kind.label.toLowerCase()} book',
         builder: (data) => Column(
           children: [
-            _BookHeader(sides: sides, withCheck: kind == BookKind.party),
+            _BookHeader(sides: sides, withCheck: _ticks),
             Expanded(
               child: ListView.builder(
                 physics: const AlwaysScrollableScrollPhysics(),
@@ -145,24 +159,24 @@ class _BookTable extends ConsumerWidget {
                   row: data.rows[i],
                   sides: sides,
                   // A book line is a summary; tapping it asks what it is made
-                  // of. Test matches have no such endpoint, so there the row
-                  // stays a plain row rather than a dead tap target.
+                  // of - on every game, tests included.
                   onTap: BookRepository.supportsPartySoda(match)
-                      ? () => PartySodaScreen.open(context, match: match, row: data.rows[i])
+                      ? () => PartySodaScreen.open(
+                          context,
+                          match: match,
+                          row: data.rows[i],
+                          // The party book shows a party's own bets only;
+                          // what it shares as a partner is the PTRN book's.
+                          ownOnly: kind == BookKind.party,
+                        )
                       : null,
                   // Reconciling is done against the party book, the same as
                   // at the desk; the other books just report.
-                  onToggleCheck: kind == BookKind.party
-                      ? () => _toggleCheck(ref, data.rows[i])
-                      : null,
+                  onToggleCheck: _ticks ? () => _toggleCheck(ref, data.rows[i]) : null,
                 ),
               ),
             ),
-            _BookTotals(
-              totals: data.totals,
-              sides: sides,
-              withCheck: kind == BookKind.party,
-            ),
+            _BookTotals(totals: data.totals, sides: sides, withCheck: _ticks),
           ],
         ),
       ),
@@ -176,13 +190,19 @@ extension on _BookTable {
   Future<void> _toggleCheck(WidgetRef ref, BookRow row) async {
     final args = (match: match, kind: kind);
     try {
-      await ref.read(bookRepositoryProvider).setChecked(
+      await ref
+          .read(bookRepositoryProvider)
+          .setChecked(
             match: match,
             partyId: row.partyId,
             checked: row.checkState != CheckState.all,
           );
     } finally {
       ref.invalidate(matchBookProvider(args));
+      // The party book and bookie book share the same tick.
+      for (final other in [BookKind.party, BookKind.bookie]) {
+        if (other != kind) ref.invalidate(matchBookProvider((match: match, kind: other)));
+      }
     }
   }
 }
@@ -211,7 +231,10 @@ class _BookHeader extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Expanded(flex: _clientFlex, child: Text('CLIENT', style: label)),
+          Expanded(
+            flex: _clientFlex,
+            child: Text('CLIENT', style: label),
+          ),
           for (final side in sides.take(3))
             Expanded(
               flex: _sideFlex,
@@ -244,25 +267,20 @@ class _Figure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Expanded(
-        flex: _sideFlex,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 6),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerRight,
-            child: Text(text, maxLines: 1, style: style),
-          ),
-        ),
-      );
+    flex: _sideFlex,
+    child: Padding(
+      padding: const EdgeInsets.only(left: 6),
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Text(text, maxLines: 1, style: style),
+      ),
+    ),
+  );
 }
 
 class _BookLine extends StatelessWidget {
-  const _BookLine({
-    required this.row,
-    required this.sides,
-    this.onTap,
-    this.onToggleCheck,
-  });
+  const _BookLine({required this.row, required this.sides, this.onTap, this.onToggleCheck});
 
   final BookRow row;
   final List<String> sides;

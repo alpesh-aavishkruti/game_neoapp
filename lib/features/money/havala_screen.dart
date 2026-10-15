@@ -16,39 +16,144 @@ final havalaRepositoryProvider = Provider<HavalaRepository>(
   (ref) => HavalaRepository(ref.watch(apiClientProvider)),
 );
 
-final havalaListProvider = FutureProvider<List<Havala>>((ref) async {
-  return ref.watch(havalaRepositoryProvider).list();
-});
+/// Havala entries between two dates, as the desk lists them.
+final havalaListProvider = FutureProvider.family<List<Havala>, ({DateTime from, DateTime to})>(
+  (ref, range) => ref.watch(havalaRepositoryProvider).list(from: range.from, to: range.to),
+);
 
 /// Havala - money moving between two parties.
-class HavalaScreen extends ConsumerWidget {
+class HavalaScreen extends ConsumerStatefulWidget {
   const HavalaScreen({super.key, this.embedded = false});
 
   /// Inside the Reports tabs the section is already named above.
   final bool embedded;
 
-  Future<void> _share(BuildContext context, WidgetRef ref) async {
+  @override
+  ConsumerState<HavalaScreen> createState() => _HavalaScreenState();
+}
+
+class _HavalaScreenState extends ConsumerState<HavalaScreen> {
+  // The last month first, as the desk opens it; any range on request.
+  DateTime _from = AppTime.today.subtract(const Duration(days: 30));
+  DateTime _to = AppTime.today;
+  final _search = TextEditingController();
+
+  /// Ticks changed here and not yet re-read; the tick lives on the server.
+  final _overrides = <int, bool>{};
+
+  ({DateTime from, DateTime to}) get _range => (from: _from, to: _to);
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _reload() => ref.invalidate(havalaListProvider(_range));
+
+  Future<void> _share() async {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Preparing the report…')),
     );
     try {
       await ref.read(reportSharingProvider).sharePdf(
             path: '/soda/havala/download_havala_report/',
+            query: {'from_date': AppTime.apiDate(_from), 'to_date': AppTime.apiDate(_to)},
             name: 'Havala report',
           );
     } on ApiException catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
     }
   }
 
+  Future<void> _pickRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(_from.year - 3),
+      lastDate: DateTime(AppTime.today.year + 1),
+      initialDateRange: DateTimeRange(start: _from, end: _to),
+    );
+    if (picked != null) {
+      setState(() {
+        _from = picked.start;
+        _to = picked.end;
+        _overrides.clear();
+      });
+    }
+  }
+
+  bool _isChecked(Havala h) => _overrides[h.id] ?? h.isChecked;
+
+  /// Saved against the havala itself - the same tick View Party shows.
+  Future<void> _toggle(Havala h) async {
+    final next = !_isChecked(h);
+    setState(() => _overrides[h.id] = next);
+    try {
+      await ref.read(apiClientProvider).post(
+        '/master/parties/${h.fromId}/set_ledger_check/',
+        data: {
+          'checked': next,
+          'rows': [
+            {'source': 'havala', 'id': h.id},
+          ],
+        },
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _overrides.remove(h.id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the tick. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _delete(Havala h) async {
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete this havala?'),
+        content: Text(
+          '${h.voucherNo.isEmpty ? 'This havala' : h.voucherNo} - ${Money.format(h.amount)} '
+          'from ${h.fromCode} to ${h.toCode}. It can be restored from the recycle bin.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Delete')),
+        ],
+      ),
+    );
+    if (sure != true) return;
+    try {
+      await ref.read(apiClientProvider).delete('/soda/havala/${h.id}/');
+      _reload();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
+
+  List<Havala> _filter(List<Havala> list) {
+    final term = _search.text.trim().toLowerCase();
+    if (term.isEmpty) return list;
+    return [
+      for (final h in list)
+        if ([h.voucherNo, h.fromCode, h.fromName, h.toCode, h.toName, h.description]
+            .join(' ')
+            .toLowerCase()
+            .contains(term))
+          h,
+    ];
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final entries = ref.watch(havalaListProvider);
+  Widget build(BuildContext context) {
+    final entries = ref.watch(havalaListProvider(_range));
 
     return Scaffold(
-      appBar: embedded
+      appBar: widget.embedded
           ? null
           : AppBar(
               title: const Text('Havala'),
@@ -58,76 +163,122 @@ class HavalaScreen extends ConsumerWidget {
                   tooltip: 'Auto havala',
                   onPressed: () async {
                     final saved = await AutoHavalaSheet.show(context);
-                    if (saved == true) ref.invalidate(havalaListProvider);
+                    if (saved == true) _reload();
                   },
                 ),
                 IconButton(
                   icon: const Icon(Icons.ios_share),
                   tooltip: 'Share as PDF',
-                  onPressed: () => _share(context, ref),
+                  onPressed: _share,
                 ),
               ],
             ),
       persistentFooterAlignment: AlignmentDirectional.centerStart,
-      persistentFooterButtons: embedded
+      persistentFooterButtons: widget.embedded
           ? [
               TextButton.icon(
                 onPressed: () async {
                   final saved = await AutoHavalaSheet.show(context);
-                  if (saved == true) ref.invalidate(havalaListProvider);
+                  if (saved == true) _reload();
                 },
                 icon: const Icon(Icons.auto_fix_high_outlined, size: 17),
                 label: const Text('Auto havala'),
               ),
               TextButton.icon(
-                onPressed: () => _share(context, ref),
+                onPressed: _share,
                 icon: const Icon(Icons.ios_share, size: 17),
                 label: const Text('Share as PDF'),
               ),
             ]
           : null,
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'fab-new-havala',
         onPressed: () async {
           final saved = await HavalaEntrySheet.show(context);
-          if (saved == true) ref.invalidate(havalaListProvider);
+          if (saved == true) _reload();
         },
         icon: const Icon(Icons.add),
         label: const Text('New havala'),
       ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.refresh(havalaListProvider.future),
-        child: AsyncView(
-          value: entries,
-          onRetry: () => ref.invalidate(havalaListProvider),
-          isEmpty: (list) => list.isEmpty,
-          emptyTitle: 'No havala entries yet',
-          emptyMessage: 'Transfers between parties will appear here.',
-          builder: (list) => ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 96),
-            itemCount: list.length,
-            itemBuilder: (context, i) => _HavalaRow(
-              entry: list[i],
-              // Tapping a line opens it for changes, the same as the desk's
-              // Edit on the havala list.
-              onTap: () async {
-                final saved =
-                    await HavalaEntrySheet.show(context, editing: list[i]);
-                if (saved == true) ref.invalidate(havalaListProvider);
-              },
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+            child: Row(
+              children: [
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, 44)),
+                  onPressed: _pickRange,
+                  icon: const Icon(Icons.date_range, size: 18),
+                  label: Text('${AppTime.date(_from)} – ${AppTime.date(_to)}'),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _search,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      hintText: 'Party or voucher',
+                      prefixIcon: Icon(Icons.search, size: 19),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () => ref.refresh(havalaListProvider(_range).future),
+              child: AsyncView(
+                value: entries,
+                onRetry: _reload,
+                isEmpty: (list) => list.isEmpty,
+                emptyTitle: 'No havala in this period',
+                emptyMessage: 'Change the dates to see older transfers.',
+                builder: (list) {
+                  final shown = _filter(list);
+                  return ListView.builder(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.only(bottom: 96),
+                    itemCount: shown.length,
+                    itemBuilder: (context, i) => _HavalaRow(
+                      entry: shown[i],
+                      isChecked: _isChecked(shown[i]),
+                      onToggle: () => _toggle(shown[i]),
+                      // Tapping a line opens it for changes, the same as the
+                      // desk's Edit on the havala list; a long press deletes.
+                      onTap: () async {
+                        final saved = await HavalaEntrySheet.show(context, editing: shown[i]);
+                        if (saved == true) _reload();
+                      },
+                      onLongPress: () => _delete(shown[i]),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _HavalaRow extends StatelessWidget {
-  const _HavalaRow({required this.entry, this.onTap});
+  const _HavalaRow({
+    required this.entry,
+    this.onTap,
+    this.onLongPress,
+    this.isChecked = false,
+    this.onToggle,
+  });
 
   final Havala entry;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+  final bool isChecked;
+  final VoidCallback? onToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +295,16 @@ class _HavalaRow extends StatelessWidget {
         children: [
           Row(
             children: [
+              if (onToggle != null)
+                SizedBox(
+                  width: 32,
+                  height: 24,
+                  child: Checkbox(
+                    visualDensity: VisualDensity.compact,
+                    value: isChecked,
+                    onChanged: (_) => onToggle!(),
+                  ),
+                ),
               Expanded(
                 child: Text(
                   entry.voucherNo.isEmpty ? 'HAVALA' : entry.voucherNo,
@@ -190,8 +351,8 @@ class _HavalaRow extends StatelessWidget {
       ),
     );
 
-    if (onTap == null) return row;
-    return InkWell(onTap: onTap, child: row);
+    if (onTap == null && onLongPress == null) return row;
+    return InkWell(onTap: onTap, onLongPress: onLongPress, child: row);
   }
 }
 

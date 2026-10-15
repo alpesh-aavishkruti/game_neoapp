@@ -21,6 +21,9 @@ class LedgerRow {
     this.originalId,
     this.voucherId,
     this.createdBy = '',
+    this.source = '',
+    this.isChecked = false,
+    this.gameCode = '',
   });
 
   final int id;
@@ -56,6 +59,19 @@ class LedgerRow {
   /// who entered it rather than guessed at.
   final String createdBy;
 
+  /// Which record the line comes from (havala, settlement, opening_balance,
+  /// clearing_jv, inflow_clearing_jv) - with [originalId], what a tick is
+  /// saved against.
+  final String source;
+
+  /// Ticked while reconciling. Kept on the server, so the desk and every
+  /// phone see the same marks.
+  final bool isChecked;
+
+  /// The game a settlement line came from (ONE_DAY, SESSION, TEST, CUP), so
+  /// it can open that match's trades.
+  final String gameCode;
+
   factory LedgerRow.fromJson(Map<String, dynamic> json) => LedgerRow(
         id: int.tryParse('${json['id']}') ?? 0,
         // The server sends this already rendered in the caller's timezone.
@@ -77,6 +93,9 @@ class LedgerRow {
         originalId: int.tryParse('${json['original_id']}'),
         voucherId: int.tryParse('${json['voucher_id']}'),
         createdBy: (json['created_by'] ?? '').toString().trim().toUpperCase(),
+        source: (json['source'] ?? '').toString().trim(),
+        isChecked: json['check'] == true,
+        gameCode: (json['game_code'] ?? '').toString().trim().toUpperCase(),
       );
 
   /// `dd-MM-yyyy`, which is how the backend writes the voucher date.

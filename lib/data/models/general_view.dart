@@ -8,6 +8,7 @@ class GeneralLine {
     required this.name,
     required this.amount,
     this.categoryId,
+    this.isChecked = false,
   });
 
   final int partyId;
@@ -19,12 +20,16 @@ class GeneralLine {
   /// class of client the way the desk narrows it.
   final int? categoryId;
 
+  /// Ticked while reconciling - kept on the server, shared with the desk.
+  final bool isChecked;
+
   factory GeneralLine.fromJson(Map<String, dynamic> json) => GeneralLine(
         partyId: int.tryParse('${json['party_id']}') ?? 0,
         code: (json['party_code'] ?? '').toString().trim().toUpperCase(),
         name: (json['party_name'] ?? '').toString().trim(),
         amount: Money.toDouble(json['amount']),
         categoryId: int.tryParse('${json['category_id']}'),
+        isChecked: json['check'] == true,
       );
 
   String get display => (name.isEmpty || name.toUpperCase() == code) ? code : '$code — $name';

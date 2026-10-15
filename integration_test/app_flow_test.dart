@@ -9,6 +9,7 @@ import 'package:game_app_flutter/core/network/api_client.dart';
 import 'package:game_app_flutter/core/providers.dart';
 import 'package:game_app_flutter/core/storage/token_store.dart';
 import 'package:game_app_flutter/core/util/app_time.dart';
+import 'package:game_app_flutter/features/money/havala_screen.dart';
 import 'package:integration_test/integration_test.dart';
 
 import 'fake_backend.dart';
@@ -163,6 +164,22 @@ void main() {
     await openTab(tester, 'Reports');
     await shot(tester, '11_reports');
 
+    // The havala list: dates, search, and a tick saved to the server.
+    await tester.ensureVisible(find.text('HAVALA'));
+    await settle(tester);
+    await tester.tap(find.text('HAVALA'));
+    await settle(tester);
+    await shot(tester, '11b_havala_list');
+    await tester.tap(find
+        .descendant(of: find.byType(HavalaScreen), matching: find.byType(Checkbox))
+        .first);
+    await settle(tester);
+    expect(
+      backend.writes.any((w) => w.call.endsWith('/set_ledger_check/')),
+      isTrue,
+      reason: 'a havala tick is saved, not kept on the phone',
+    );
+
     // --- Party master --------------------------------------------------------
     await openTab(tester, 'Party');
     expect(find.textContaining('SHIV'), findsWidgets);
@@ -187,6 +204,8 @@ void main() {
       'Clearing JV',
       'Recycle bin',
       'Edit history',
+      'Edit / delete history',
+      'Havala history',
     ];
     var n = 14;
     for (final item in moreItems) {

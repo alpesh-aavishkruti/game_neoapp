@@ -25,7 +25,7 @@ final organisationNameProvider = FutureProvider<String?>((ref) async {
 /// Any master list, keyed by its path so each is cached on its own.
 final masterRowsProvider =
     FutureProvider.family<List<Map<String, dynamic>>, String>((ref, path) async {
-  return ref.watch(masterRepositoryProvider).rows(path, query: {'page_size': 200});
+  return ref.watch(masterRepositoryProvider).rows(path);
 });
 
 /// Reloads a master list after a row was added, changed or deleted.

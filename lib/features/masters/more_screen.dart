@@ -7,6 +7,7 @@ import '../../core/util/app_time.dart';
 import '../../data/models/match.dart';
 import '../auth/auth_controller.dart';
 import 'clearing_jv_screen.dart';
+import 'audit_history_screen.dart';
 import 'edit_history_screen.dart';
 import 'master_list_screen.dart';
 import 'brokerage_edit_sheet.dart';
@@ -33,7 +34,7 @@ class MoreScreen extends ConsumerWidget {
   /// Each tile names where it goes. The masters are read-only here: the app is
   /// for running the book, and setting one up is still done at the desk.
   static List<({IconData icon, String title, String subtitle, Widget Function() open})>
-      get _items => [
+  get _items => [
     (
       icon: Icons.storefront_outlined,
       title: 'Match master',
@@ -63,10 +64,10 @@ class MoreScreen extends ConsumerWidget {
           // ("231 - PAKISTAN VS 20 OVER"), so a line there is found here.
           title: [
             if (row['id'] != null) '${row['id']} -',
-            [row['nation_a'], row['nation_b']]
-                .where((e) => (e ?? '').toString().trim().isNotEmpty)
-                .join(' vs ')
-                .toUpperCase(),
+            [
+              row['nation_a'],
+              row['nation_b'],
+            ].where((e) => (e ?? '').toString().trim().isNotEmpty).join(' vs ').toUpperCase(),
           ].join(' '),
           subtitle: [
             // The stored code reads ONE_DAY; the desk calls it One Day.
@@ -123,9 +124,7 @@ class MoreScreen extends ConsumerWidget {
         onEdit: (context, row) => BrokerageEditSheet.show(context, editing: row),
         rowOf: (row) => MasterRowSpec(
           // The server's own code reads ONE_DAY; the desk calls it One Day.
-          title: row['game_code'] == null
-              ? 'Brokerage'
-              : GameType.parse(row['game_code']).label,
+          title: row['game_code'] == null ? 'Brokerage' : GameType.parse(row['game_code']).label,
           subtitle: 'Comm ${row['comm_percent'] ?? 0}% · code ${row['comm_code_percent'] ?? 0}%',
           trailing: (row['date'] ?? '').toString(),
         ),
@@ -219,9 +218,10 @@ class MoreScreen extends ConsumerWidget {
         rowOf: (row) {
           final user = row['user'] is Map ? row['user'] as Map : const {};
           final role = row['role'] is Map ? row['role'] as Map : const {};
-          final name = [user['first_name'], user['last_name']]
-              .where((e) => (e ?? '').toString().trim().isNotEmpty)
-              .join(' ');
+          final name = [
+            user['first_name'],
+            user['last_name'],
+          ].where((e) => (e ?? '').toString().trim().isNotEmpty).join(' ');
           final username = (user['username'] ?? '').toString();
 
           final roleName = (role['name'] ?? '').toString();
@@ -233,8 +233,7 @@ class MoreScreen extends ConsumerWidget {
               if ((row['user_code'] ?? '').toString().trim().isNotEmpty)
                 row['user_code'].toString(),
               if (name.isNotEmpty && username.isNotEmpty) username,
-              if ((row['phone'] ?? '').toString().trim().isNotEmpty)
-                row['phone'].toString(),
+              if ((row['phone'] ?? '').toString().trim().isNotEmpty) row['phone'].toString(),
               if (minutes != null) 'Logs out after $minutes min',
               if (user['is_2fa_enabled'] == true) '2FA on',
             ].join(' · '),
@@ -311,6 +310,18 @@ class MoreScreen extends ConsumerWidget {
       subtitle: 'Who changed what',
       open: () => const EditHistoryScreen(),
     ),
+    (
+      icon: Icons.history_toggle_off,
+      title: 'Edit / delete history',
+      subtitle: 'Bets changed or deleted',
+      open: () => const AuditHistoryScreen(),
+    ),
+    (
+      icon: Icons.receipt_long_outlined,
+      title: 'Havala history',
+      subtitle: 'Havala changed or deleted',
+      open: () => const AuditHistoryScreen(havala: true),
+    ),
   ];
 
   /// A settled match keeps its sides; what is worth correcting from a phone
@@ -328,12 +339,7 @@ class MoreScreen extends ConsumerWidget {
       key: 'game',
       label: 'Game',
       required: true,
-      options: {
-        'ONE_DAY': 'One Day',
-        'SESSION': 'Session',
-        'TEST': 'Test',
-        'CUP': 'Cup',
-      },
+      options: {'ONE_DAY': 'One Day', 'SESSION': 'Session', 'TEST': 'Test', 'CUP': 'Cup'},
     ),
     TextMasterField(
       key: 'nation_a',
@@ -388,8 +394,7 @@ class MoreScreen extends ConsumerWidget {
   /// Commission is not set here; it lives above the board with the other
   /// switches, where it decides how the next entry is written.
   static final _cupFields = <MasterField>[
-    const TextMasterField(
-        key: 'cup_name', label: 'Cup name', required: true, uppercase: true),
+    const TextMasterField(key: 'cup_name', label: 'Cup name', required: true, uppercase: true),
     ChoiceMasterField(
       key: 'total_nations',
       label: 'Number of nations',
@@ -471,8 +476,7 @@ class MoreScreen extends ConsumerWidget {
   /// The dropdown hands back its value as text; the server stores a number,
   /// and its own default of two would finish a bigger cup after one result.
   static void _countCupTeams(Map<String, dynamic> payload) {
-    payload['total_nations'] =
-        int.tryParse('${payload['total_nations'] ?? ''}') ?? 2;
+    payload['total_nations'] = int.tryParse('${payload['total_nations'] ?? ''}') ?? 2;
   }
 
   static const _categoryFields = [
@@ -511,6 +515,11 @@ class MoreScreen extends ConsumerWidget {
     SwitchMasterField(key: 'is_active', label: 'Active', initial: true),
   ];
 
+  static bool _isAdmin(WidgetRef ref) {
+    final auth = ref.watch(authControllerProvider);
+    return auth is SignedIn && auth.session.isOrgAdmin;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
@@ -529,9 +538,9 @@ class MoreScreen extends ConsumerWidget {
             onChangePassword: () async {
               final changed = await ChangePasswordSheet.show(context);
               if (changed == true && context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password changed.')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Password changed.')));
               }
             },
           ),
@@ -545,14 +554,16 @@ class MoreScreen extends ConsumerWidget {
             childAspectRatio: 1.55,
             children: [
               for (final item in _items)
-                _MoreTile(
-                  icon: item.icon,
-                  title: item.title,
-                  subtitle: item.subtitle,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => item.open()),
+                // The recycle bin restores and destroys records for the whole
+                // company, so only its admins see it - as on the desk.
+                if (item.title != 'Recycle bin' || _isAdmin(ref))
+                  _MoreTile(
+                    icon: item.icon,
+                    title: item.title,
+                    subtitle: item.subtitle,
+                    onTap: () =>
+                        Navigator.of(context).push(MaterialPageRoute(builder: (_) => item.open())),
                   ),
-                ),
             ],
           ),
           const SizedBox(height: 20),
@@ -715,11 +726,7 @@ class _AccountCard extends StatelessWidget {
             onTap: onChangePassword,
           ),
           const SizedBox(width: 6),
-          _CardAction(
-            icon: Icons.logout,
-            tooltip: 'Sign out',
-            onTap: onSignOut,
-          ),
+          _CardAction(icon: Icons.logout, tooltip: 'Sign out', onTap: onSignOut),
         ],
       ),
     );
@@ -729,11 +736,7 @@ class _AccountCard extends StatelessWidget {
 /// A button on the account card. Given a surface of its own so it reads as
 /// something to press rather than an icon floating on the blue.
 class _CardAction extends StatelessWidget {
-  const _CardAction({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
+  const _CardAction({required this.icon, required this.tooltip, required this.onTap});
 
   final IconData icon;
   final String tooltip;
@@ -741,21 +744,17 @@ class _CardAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Tooltip(
-        message: tooltip,
-        child: Material(
-          color: Colors.white.withValues(alpha: 0.16),
-          borderRadius: BorderRadius.circular(AppTheme.rButton),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(AppTheme.rButton),
-            onTap: onTap,
-            child: SizedBox(
-              width: 38,
-              height: 38,
-              child: Icon(icon, color: Colors.white, size: 18),
-            ),
-          ),
-        ),
-      );
+    message: tooltip,
+    child: Material(
+      color: Colors.white.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(AppTheme.rButton),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTheme.rButton),
+        onTap: onTap,
+        child: SizedBox(width: 38, height: 38, child: Icon(icon, color: Colors.white, size: 18)),
+      ),
+    ),
+  );
 }
 
 class _MoreTile extends StatelessWidget {
@@ -773,44 +772,44 @@ class _MoreTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: context.scheme.surface,
-        borderRadius: BorderRadius.circular(AppTheme.rCard + 4),
-        child: InkWell(
+    color: context.scheme.surface,
+    borderRadius: BorderRadius.circular(AppTheme.rCard + 4),
+    child: InkWell(
+      borderRadius: BorderRadius.circular(AppTheme.rCard + 4),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(11, 12, 11, 12),
+        decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppTheme.rCard + 4),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(11, 12, 11, 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppTheme.rCard + 4),
-              border: Border.all(color: context.book.line),
-            ),
-            child: Column(
+          border: Border.all(color: context.book.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Icon(icon, size: 20, color: context.scheme.primary),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(icon, size: 20, color: context.scheme.primary),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 1),
-                    Text(
-                      subtitle,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: context.text.bodySmall?.copyWith(fontSize: 9.5, height: 1.3),
-                    ),
-                  ],
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 1),
+                Text(
+                  subtitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.text.bodySmall?.copyWith(fontSize: 9.5, height: 1.3),
                 ),
               ],
             ),
-          ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }

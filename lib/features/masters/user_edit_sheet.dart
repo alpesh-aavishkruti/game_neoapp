@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
@@ -12,13 +11,8 @@ import '../../shared/widgets/app_dropdown.dart';
 const employeePath = '/employee/';
 
 final _rolesProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>(
-  (ref) async {
-    final body = await ref.watch(apiClientProvider).get('/role/');
-    return asList(body)
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
-  },
+  // Every page - the role list is paged ten at a time by default.
+  (ref) => ref.watch(apiClientProvider).getAll('/role/'),
 );
 
 /// Adding a person who can sign in, or correcting one.

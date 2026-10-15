@@ -47,11 +47,20 @@ enum TwoFactorMethod {
 }
 
 class Session {
-  const Session({required this.access, required this.refresh, this.profile});
+  const Session({
+    required this.access,
+    required this.refresh,
+    this.profile,
+    this.mustChangePassword = false,
+  });
 
   final String access;
   final String refresh;
   final Map<String, dynamic>? profile;
+
+  /// Signed in with a password an admin gave: the user has to choose their
+  /// own before anything else opens.
+  final bool mustChangePassword;
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
         access: (json['access'] ?? '').toString(),
@@ -59,6 +68,7 @@ class Session {
         profile: json['profile'] is Map
             ? Map<String, dynamic>.from(json['profile'] as Map)
             : null,
+        mustChangePassword: json['must_change_password'] == true,
       );
 
   bool get isValid => access.isNotEmpty;
@@ -88,7 +98,18 @@ class Session {
     return 'User';
   }
 
+  /// The organisation this account works in, from the sign-in profile.
+  Object? get organizationId {
+    final org = profile?['organization'];
+    if (org is Map) return org['id'];
+    return org;
+  }
+
   /// True when this account administers its organisation. Screens use it to
   /// hide what the account could not open anyway.
   bool get isOrgAdmin => profile?['is_org_admin'] == true;
+
+  /// Minutes without a touch before the app signs this user out, as set in
+  /// User Master. Null or 0 means no limit.
+  int? get autoLogoutMinutes => int.tryParse('${profile?['auto_logout_minutes']}');
 }

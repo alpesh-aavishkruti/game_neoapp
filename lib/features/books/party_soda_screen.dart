@@ -11,10 +11,11 @@ import '../money/ledger_screen.dart';
 import 'party_book_screen.dart';
 
 final _partySodaProvider = FutureProvider.autoDispose
-    .family<List<BetEntry>, ({GameMatch match, int partyId})>((ref, args) {
+    .family<List<BetEntry>, ({GameMatch match, int partyId, bool ownOnly})>((ref, args) {
   return ref.watch(bookRepositoryProvider).partySoda(
         match: args.match,
         partyId: args.partyId,
+        ownOnly: args.ownOnly,
       );
 });
 
@@ -24,26 +25,35 @@ final _partySodaProvider = FutureProvider.autoDispose
 /// is, constantly - the answer is the bets behind that line, so this is opened
 /// straight from the row rather than filed under a menu somewhere.
 class PartySodaScreen extends ConsumerWidget {
-  const PartySodaScreen({super.key, required this.match, required this.row});
+  const PartySodaScreen({
+    super.key,
+    required this.match,
+    required this.row,
+    this.ownOnly = false,
+  });
 
   final GameMatch match;
   final BookRow row;
+
+  /// Only the party's own bets - opened from the party book.
+  final bool ownOnly;
 
   static Future<void> open(
     BuildContext context, {
     required GameMatch match,
     required BookRow row,
+    bool ownOnly = false,
   }) =>
       Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => PartySodaScreen(match: match, row: row),
+          builder: (_) => PartySodaScreen(match: match, row: row, ownOnly: ownOnly),
         ),
       );
 
   /// Ticks one bet off, the same tick the party book shows on this line.
   Future<void> _toggle(
     WidgetRef ref,
-    ({GameMatch match, int partyId}) args,
+    ({GameMatch match, int partyId, bool ownOnly}) args,
     BetEntry entry,
   ) async {
     try {
@@ -61,7 +71,7 @@ class PartySodaScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final args = (match: match, partyId: row.partyId);
+    final args = (match: match, partyId: row.partyId, ownOnly: ownOnly);
     final entries = ref.watch(_partySodaProvider(args));
 
     return Scaffold(

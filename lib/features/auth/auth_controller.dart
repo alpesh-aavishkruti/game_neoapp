@@ -23,8 +23,18 @@ class SignedOut extends AuthState {
 
 /// Credentials accepted, second factor still outstanding.
 class AwaitingTwoFactor extends AuthState {
-  const AwaitingTwoFactor(this.challenge);
+  const AwaitingTwoFactor(this.challenge, {this.givenPassword = ''});
   final TwoFactorChallenge challenge;
+
+  /// Kept in case the account turns out to need its own password next.
+  final String givenPassword;
+}
+
+/// Signed in with a password an admin gave; the user must choose their own
+/// before anything else opens, then sign in again with it.
+class MustChangePassword extends AuthState {
+  const MustChangePassword({required this.givenPassword});
+  final String givenPassword;
 }
 
 class SignedIn extends AuthState {
@@ -40,6 +50,12 @@ class AuthController extends Notifier<AuthState> {
     // the first to know. It reports back here rather than the other way round,
     // which keeps the network layer unaware of any feature.
     ref.read(apiClientProvider).onSessionExpired = forceSignOut;
+    ref.read(apiClientProvider).onPasswordChangeRequired = () {
+      if (state is SignedOut || state is MustChangePassword) return;
+      state = const SignedOut(
+        message: 'Please sign in again and set your own password.',
+      );
+    };
 
     // Kick off the session restore, but answer `unknown` immediately so the
     // first frame can render a splash rather than flashing the sign-in form.
@@ -64,8 +80,11 @@ class AuthController extends Notifier<AuthState> {
         .login(username: username, password: password);
 
     state = switch (result) {
+      LoggedIn(:final session) when session.mustChangePassword =>
+        MustChangePassword(givenPassword: password),
       LoggedIn(:final session) => SignedIn(session, permissions: await _permissions()),
-      TwoFactorChallenge challenge => AwaitingTwoFactor(challenge),
+      TwoFactorChallenge challenge =>
+        AwaitingTwoFactor(challenge, givenPassword: password),
     };
   }
 
@@ -76,7 +95,26 @@ class AuthController extends Notifier<AuthState> {
           tempToken: current.challenge.tempToken,
           code: code,
         );
+    if (session.mustChangePassword) {
+      state = MustChangePassword(givenPassword: current.givenPassword);
+      return;
+    }
     state = SignedIn(session, permissions: await _permissions());
+  }
+
+  /// Replaces the admin-given password with the user's own, then signs out so
+  /// they sign in again with it. Throws [ApiException] for the form to show.
+  Future<void> setOwnPassword(String newPassword) async {
+    final current = state;
+    if (current is! MustChangePassword) return;
+    await ref.read(apiClientProvider).post('/change-password/', data: {
+      'current_password': current.givenPassword,
+      'new_password': newPassword,
+    });
+    await ref.read(authRepositoryProvider).logout();
+    state = const SignedOut(
+      message: 'Password changed. Please sign in with your new password.',
+    );
   }
 
   /// Steps back from the code screen to the sign-in form.
@@ -85,6 +123,15 @@ class AuthController extends Notifier<AuthState> {
   Future<void> signOut() async {
     await ref.read(authRepositoryProvider).logout();
     state = const SignedOut();
+  }
+
+  /// Signs out after the account's idle limit, saying why.
+  Future<void> signOutIdle(int minutes) async {
+    if (state is! SignedIn) return;
+    await ref.read(authRepositoryProvider).logout();
+    state = SignedOut(
+      message: 'Signed out after $minutes minutes without activity. Please sign in again.',
+    );
   }
 
   /// Called by the API client when a refresh fails and the session is gone.

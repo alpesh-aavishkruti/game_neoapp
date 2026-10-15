@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
 import 'features/auth/auth_controller.dart';
+import 'features/auth/idle_sign_out.dart';
+import 'features/auth/set_own_password_screen.dart';
 import 'features/auth/sign_in_screen.dart';
 import 'features/auth/two_factor_screen.dart';
 import 'features/shell/app_shell.dart';
@@ -36,13 +38,16 @@ class NeonApp extends ConsumerWidget {
         );
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: scale),
-          child: child ?? const SizedBox.shrink(),
+          // Wraps every screen and sheet, so any touch anywhere counts.
+          child: IdleSignOut(child: child ?? const SizedBox.shrink()),
         );
       },
       home: switch (auth) {
         AuthUnknown() => const _Splash(),
         SignedOut(:final message) => SignInScreen(notice: message),
         AwaitingTwoFactor(:final challenge) => TwoFactorScreen(challenge: challenge),
+        MustChangePassword(:final givenPassword) =>
+          SetOwnPasswordScreen(givenPassword: givenPassword),
         SignedIn() => const AppShell(),
       },
     );

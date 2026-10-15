@@ -65,10 +65,36 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
   int? _categoryId;
   bool _byAmount = false;
 
-  /// Ticked off as the list is worked through. Held for the session only: it
-  /// is a reconciling scratch-pad, not a record, and the desk clears it the
-  /// same way every time it reopens the screen.
-  final _checked = <int>{};
+  /// Ticks changed here and not yet re-read. The tick itself is kept on the
+  /// server, so the desk and every phone see the same marks.
+  final _overrides = <int, bool>{};
+
+  bool _isOn(GeneralLine line) => _overrides[line.partyId] ?? line.isChecked;
+
+  Future<void> _setChecks(List<GeneralLine> lines, bool on) async {
+    final before = {for (final l in lines) l.partyId: _overrides[l.partyId]};
+    setState(() {
+      for (final l in lines) {
+        _overrides[l.partyId] = on;
+      }
+    });
+    try {
+      await ref.read(apiClientProvider).post(
+        '/master/parties/set_general_check/',
+        data: {'checked': on, 'party_ids': [for (final l in lines) l.partyId]},
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        before.forEach((id, value) {
+          value == null ? _overrides.remove(id) : _overrides[id] = value;
+        });
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the tick. Please try again.')),
+      );
+    }
+  }
 
   @override
   void dispose() {
@@ -92,7 +118,6 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
     _search.clear();
     _categoryId = null;
     _byAmount = false;
-    _checked.clear();
   });
 
   Future<void> _share() async {
@@ -134,17 +159,7 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
     return out;
   }
 
-  void _toggle(int partyId) => setState(() {
-    _checked.contains(partyId)
-        ? _checked.remove(partyId)
-        : _checked.add(partyId);
-  });
-
-  void _toggleAll(List<GeneralLine> lines, bool on) => setState(() {
-    for (final line in lines) {
-      on ? _checked.add(line.partyId) : _checked.remove(line.partyId);
-    }
-  });
+  void _toggleAll(List<GeneralLine> lines, bool on) => _setChecks(lines, on);
 
   @override
   Widget build(BuildContext context) {
@@ -161,6 +176,15 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
         builder: (data) {
           final given = _apply(data.give);
           final take = _apply(data.take);
+          final checked = {
+            for (final l in [...data.give, ...data.take])
+              if (_isOn(l)) l.partyId,
+          };
+          void toggle(int partyId) {
+            final line = [...data.give, ...data.take]
+                .firstWhere((l) => l.partyId == partyId);
+            _setChecks([line], !_isOn(line));
+          }
 
           // Totals follow the filter: a total that counted rows the operator
           // has just filtered away could not be reconciled against anything.
@@ -179,8 +203,8 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
                       lines: given,
                       total: totalGiven,
                       isCredit: true,
-                      checked: _checked,
-                      onToggle: _toggle,
+                      checked: checked,
+                      onToggle: toggle,
                       onToggleAll: (on) => _toggleAll(given, on),
                     ),
                     _Side(
@@ -188,8 +212,8 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
                       lines: take,
                       total: totalTake,
                       isCredit: false,
-                      checked: _checked,
-                      onToggle: _toggle,
+                      checked: checked,
+                      onToggle: toggle,
                       onToggleAll: (on) => _toggleAll(take, on),
                     ),
                   ],

@@ -29,16 +29,22 @@ class BookRepository {
   /// Every bet one party has on this match.
   ///
   /// The books show a party as a single line; this is what that line is made
-  /// of, which is what gets asked for when a figure is queried. Test matches
-  /// have no such endpoint, so the books do not offer the drill-down there.
+  /// of, which is what gets asked for when a figure is queried.
+  ///
+  /// [ownOnly] keeps to the party's own bets, as the party book's View Data
+  /// does on the desk; without it the bets the party shares as a partner come
+  /// along too, as the other books show them.
   Future<List<BetEntry>> partySoda({
     required GameMatch match,
     required int partyId,
+    bool ownOnly = false,
   }) async {
-    final slug = match.game.slug;
+    // A test has no endpoint of its own for this; the one day one answers for
+    // tests too, exactly as the desk reads it.
+    final slug = match.game == GameType.test ? GameType.oneDay.slug : match.game.slug;
     final body = await _api.get(
       '/soda/$slug/${match.id}/${slug}_party_soda/',
-      query: {'party_id': partyId},
+      query: {'party_id': partyId, if (ownOnly) 'own_only': 'true'},
     );
     final rows = asMap(body)['entries'];
     if (rows is! List) return const [];
@@ -70,8 +76,9 @@ class BookRepository {
     );
   }
 
-  /// Whether [match] supports the per-party drill-down at all.
-  static bool supportsPartySoda(GameMatch match) => match.game != GameType.test;
+  /// Whether [match] supports the per-party drill-down. Every game does now:
+  /// a test is read through the one day endpoint, as the desk reads it.
+  static bool supportsPartySoda(GameMatch match) => true;
 
   /// A party's statement, oldest first, with the balance it closes at.
   ///

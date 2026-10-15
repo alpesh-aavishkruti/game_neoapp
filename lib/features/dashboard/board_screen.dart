@@ -18,6 +18,7 @@ import 'widgets/entry_row.dart';
 import 'widgets/exposure_panel.dart';
 import 'widgets/match_flags_bar.dart';
 import 'widgets/run_ladder_strip.dart';
+import '../../shared/widgets/live_refresh.dart';
 
 /// A match board: position first, entries below.
 ///
@@ -66,7 +67,9 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
     });
 
     try {
-      await ref.read(matchRepositoryProvider).setMatchFlags(
+      await ref
+          .read(matchRepositoryProvider)
+          .setMatchFlags(
             match: previous,
             commissionEnabled: commissionEnabled,
             ptrnEnabled: ptrnEnabled,
@@ -78,9 +81,9 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
     } catch (_) {
       if (!mounted) return;
       setState(() => _pendingFlags = previous);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not save that. Please try again.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not save that. Please try again.')));
     } finally {
       if (mounted) setState(() => _savingFlags = false);
     }
@@ -89,11 +92,7 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
   Future<void> _refresh() => ref.refresh(boardProvider(match).future);
 
   Future<void> _addEntry() async {
-    final used = await BetEntrySheet.show(
-      context,
-      match: match,
-      lastUsed: _lastUsed,
-    );
+    final used = await BetEntrySheet.show(context, match: match, lastUsed: _lastUsed);
     if (used == null) return;
 
     // A run of bets on the same side should be one tap each, not three, so the
@@ -103,11 +102,7 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
   }
 
   Future<void> _editEntry(BetEntry entry) async {
-    final saved = await BetEntrySheet.show(
-      context,
-      match: match,
-      editing: entry,
-    );
+    final saved = await BetEntrySheet.show(context, match: match, editing: entry);
     if (saved == null) return;
     await _refresh();
   }
@@ -138,10 +133,7 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
     if (confirmed != true) return;
 
     try {
-      await ref.read(matchRepositoryProvider).deleteEntry(
-            match: match,
-            entryId: entry.id,
-          );
+      await ref.read(matchRepositoryProvider).deleteEntry(match: match, entryId: entry.id);
       await _refresh();
     } on ApiException catch (e) {
       _say(e.message);
@@ -177,116 +169,112 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
   Widget build(BuildContext context) {
     final board = ref.watch(boardProvider(match));
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(match.title, style: context.text.titleLarge?.copyWith(fontSize: 18)),
-            Text(
-              [
-                match.game.label,
-                if (match.createdAt != null) AppTime.date(match.createdAt),
-              ].join(' · '),
-              style: context.text.bodySmall?.copyWith(fontSize: 11),
+    return LiveRefresh(
+      // Other operators' bets appear the moment they are saved.
+      matchId: match.id,
+      onTick: () => ref.invalidate(boardProvider(match)),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(match.title, style: context.text.titleLarge?.copyWith(fontSize: 18)),
+              Text(
+                [
+                  match.game.label,
+                  if (match.createdAt != null) AppTime.date(match.createdAt),
+                ].join(' · '),
+                style: context.text.bodySmall?.copyWith(fontSize: 11),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.menu_book_outlined),
+              tooltip: 'Books',
+              onPressed: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => PartyBookScreen(match: match))),
             ),
+            if (!match.isSettled)
+              PopupMenuButton<String>(
+                tooltip: 'More',
+                onSelected: (value) async {
+                  switch (value) {
+                    case 'close':
+                      _closeMatch();
+                    case 'runwise':
+                      await RunWiseScreen.open(context, match: match);
+                    case 'bombay':
+                      final saved = await BombaySettleSheet.show(context, match: match);
+                      if (saved == true) await _refresh();
+                  }
+                },
+                itemBuilder: (context) => [
+                  // A session's position is read off run figures, so the full
+                  // table belongs to it and to nothing else.
+                  if (match.game == GameType.session)
+                    const PopupMenuItem(value: 'runwise', child: Text('Run wise')),
+                  // Bombay legs settle elsewhere; a cup and a session have none.
+                  if (match.game == GameType.oneDay || match.game == GameType.test)
+                    const PopupMenuItem(value: 'bombay', child: Text('Bombay settle')),
+                  PopupMenuItem(
+                    value: 'close',
+                    child: Text(match.game == GameType.cup ? 'Declare result' : 'Close match'),
+                  ),
+                ],
+              ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.menu_book_outlined),
-            tooltip: 'Books',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => PartyBookScreen(match: match)),
-            ),
-          ),
-          if (!match.isSettled)
-            PopupMenuButton<String>(
-              tooltip: 'More',
-              onSelected: (value) async {
-                switch (value) {
-                  case 'close':
-                    _closeMatch();
-                  case 'runwise':
-                    await RunWiseScreen.open(context, match: match);
-                  case 'bombay':
-                    final saved =
-                        await BombaySettleSheet.show(context, match: match);
-                    if (saved == true) await _refresh();
-                }
-              },
-              itemBuilder: (context) => [
-                // A session's position is read off run figures, so the full
-                // table belongs to it and to nothing else.
+        floatingActionButton: match.isSettled
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: _addEntry,
+                icon: const Icon(Icons.add),
+                label: Text(match.game == GameType.session ? 'Add run' : 'Add bet'),
+              ),
+        body: RefreshIndicator(
+          onRefresh: _refresh,
+          child: AsyncView(
+            value: board,
+            onRetry: () => ref.invalidate(boardProvider(match)),
+            builder: (data) => Column(
+              children: [
+                // Commission, partnerships and the party book decide how the next
+                // entry is written, so they sit above the board rather than
+                // behind a menu.
+                MatchFlagsBar(match: match, busy: _savingFlags, onChanged: _setFlags),
+                // A session stands on run figures, not on two sides, so it gets
+                // the ladder where the other boards get exposure tiles.
                 if (match.game == GameType.session)
-                  const PopupMenuItem(value: 'runwise', child: Text('Run wise')),
-                // Bombay legs settle elsewhere; a cup and a session have none.
-                if (match.game == GameType.oneDay || match.game == GameType.test)
-                  const PopupMenuItem(
-                    value: 'bombay',
-                    child: Text('Bombay settle'),
-                  ),
-                PopupMenuItem(
-                  value: 'close',
-                  child: Text(match.game == GameType.cup ? 'Declare result' : 'Close match'),
+                  RunLadderStrip(ladder: data.ladder, totals: data.sessionTotals)
+                else
+                  ExposurePanel(totals: data.totals),
+                EntryHeader(
+                  subjectLabel: match.game == GameType.session ? 'Run / client' : 'Nation / client',
+                  // A settled board takes no more changes, so its rows carry no
+                  // buttons and the heading reclaims the room.
+                  hasActions: !match.isSettled,
+                ),
+                Expanded(
+                  child: data.entries.isEmpty
+                      ? _NoEntriesYet(isSettled: match.isSettled)
+                      : ListView.builder(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.only(bottom: 96),
+                          itemCount: data.entries.length,
+                          itemBuilder: (context, i) {
+                            final entry = data.entries[i];
+                            return EntryRow(
+                              entry: entry,
+                              onEdit: match.isSettled ? null : () => _editEntry(entry),
+                              onDelete: match.isSettled ? null : () => _delete(entry),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
-        ],
-      ),
-      floatingActionButton: match.isSettled
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _addEntry,
-              icon: const Icon(Icons.add),
-              label: Text(match.game == GameType.session ? 'Add run' : 'Add bet'),
-            ),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: AsyncView(
-          value: board,
-          onRetry: () => ref.invalidate(boardProvider(match)),
-          builder: (data) => Column(
-            children: [
-              // Commission, partnerships and the party book decide how the next
-              // entry is written, so they sit above the board rather than
-              // behind a menu.
-              MatchFlagsBar(
-                match: match,
-                busy: _savingFlags,
-                onChanged: _setFlags,
-              ),
-              // A session stands on run figures, not on two sides, so it gets
-              // the ladder where the other boards get exposure tiles.
-              if (match.game == GameType.session)
-                RunLadderStrip(ladder: data.ladder, totals: data.sessionTotals)
-              else
-                ExposurePanel(totals: data.totals),
-              EntryHeader(
-                subjectLabel:
-                    match.game == GameType.session ? 'Run / client' : 'Nation / client',
-                // A settled board takes no more changes, so its rows carry no
-                // buttons and the heading reclaims the room.
-                hasActions: !match.isSettled,
-              ),
-              Expanded(
-                child: data.entries.isEmpty
-                    ? _NoEntriesYet(isSettled: match.isSettled)
-                    : ListView.builder(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.only(bottom: 96),
-                        itemCount: data.entries.length,
-                        itemBuilder: (context, i) {
-                          final entry = data.entries[i];
-                          return EntryRow(
-                            entry: entry,
-                            onEdit: match.isSettled ? null : () => _editEntry(entry),
-                            onDelete: match.isSettled ? null : () => _delete(entry),
-                          );
-                        },
-                      ),
-              ),
-            ],
           ),
         ),
       ),
@@ -301,19 +289,19 @@ class _NoEntriesYet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          const SizedBox(height: 70),
-          Center(
-            child: Text(
-              isSettled ? 'This match was settled with no entries.' : 'No entries yet',
-              style: context.text.titleMedium,
-            ),
-          ),
-          if (!isSettled) ...[
-            const SizedBox(height: 6),
-            Center(child: Text('Tap Add to place the first bet.', style: context.text.bodySmall)),
-          ],
-        ],
-      );
+    physics: const AlwaysScrollableScrollPhysics(),
+    children: [
+      const SizedBox(height: 70),
+      Center(
+        child: Text(
+          isSettled ? 'This match was settled with no entries.' : 'No entries yet',
+          style: context.text.titleMedium,
+        ),
+      ),
+      if (!isSettled) ...[
+        const SizedBox(height: 6),
+        Center(child: Text('Tap Add to place the first bet.', style: context.text.bodySmall)),
+      ],
+    ],
+  );
 }

@@ -126,8 +126,10 @@ class MatchRepository {
 
   /// House accounts a match can be settled against.
   Future<List<LedgerAccount>> accounts() async {
-    final body = await _api.get('/master/accounts/');
-    return asList(body).map(LedgerAccount.fromJson).toList();
+    // Every page: the list is paged ten at a time, which hid accounts past
+    // the tenth from the close-match picker.
+    final rows = await _api.getAll('/master/accounts/');
+    return rows.map(LedgerAccount.fromJson).toList();
   }
 
   /// What closing the match would move, without closing it.
@@ -212,8 +214,10 @@ class MatchRepository {
   /// Parties available to bet for. Loaded once and searched on the device, so
   /// the client-code field answers instantly rather than per keystroke.
   Future<List<Party>> parties() async {
-    final body = await _api.get('/master/parties/', query: {'page_size': 1000});
-    return asList(body)
+    // Every page: a company with more than a hundred parties had the rest
+    // missing from client codes, Party Master and every picker.
+    final rows = await _api.getAll('/master/parties/');
+    return rows
         .map(Party.fromJson)
         .where((p) => p.isActive)
         .toList()

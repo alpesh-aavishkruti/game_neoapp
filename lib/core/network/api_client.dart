@@ -34,6 +34,11 @@ class ApiClient {
   /// Called when the session cannot be recovered, so the app can sign out.
   void Function()? onSessionExpired;
 
+  /// Called when the server holds this account until it sets its own
+  /// password (an admin-given one is still in use), so the app can sign out
+  /// and send the user to the sign-in screen to do that.
+  void Function()? onPasswordChangeRequired;
+
   Future<void> _onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
@@ -55,6 +60,15 @@ class ApiClient {
   Future<void> _onError(DioException error, ErrorInterceptorHandler handler) async {
     final isAuthCall = _isAuthEndpoint(error.requestOptions.path);
     final alreadyRetried = error.requestOptions.extra['retried'] == true;
+
+    final body = error.response?.data;
+    if (error.response?.statusCode == 403 &&
+        body is Map &&
+        body['code'] == 'password_change_required') {
+      await _tokens.clear();
+      onPasswordChangeRequired?.call();
+      return handler.next(error);
+    }
 
     if (error.response?.statusCode != 401 || isAuthCall || alreadyRetried) {
       return handler.next(error);
@@ -109,6 +123,33 @@ class ApiClient {
 
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) =>
       _send(() => _dio.get(path, queryParameters: query));
+
+  /// Every row of a list, however many pages the server answers in.
+  ///
+  /// The list endpoints hand out at most 100 rows a page and say when there is
+  /// more; reading only the first page left a company with more than 100
+  /// parties or categories missing the rest on the phone. Lists the server does
+  /// not page come back in one request, exactly as [get] reads them.
+  Future<List<Map<String, dynamic>>> getAll(
+    String path, {
+    Map<String, dynamic>? query,
+  }) async {
+    const pageSize = 100;
+    const maxPages = 200;
+    final rows = <Map<String, dynamic>>[];
+    for (var page = 1; page <= maxPages; page++) {
+      final body = await get(path, query: {
+        ...?query,
+        'page': page,
+        'page_size': pageSize,
+      });
+      final batch = asList(body);
+      rows.addAll(batch);
+      final next = body is Map ? body['next'] : null;
+      if (next == null || next == false || batch.isEmpty) break;
+    }
+    return rows;
+  }
 
   Future<dynamic> post(String path, {Object? data, Map<String, dynamic>? query}) =>
       _send(() => _dio.post(path, data: data, queryParameters: query));

@@ -9,8 +9,17 @@ class HavalaRepository {
 
   final ApiClient _api;
 
-  Future<List<Havala>> list() async {
-    final body = await _api.get('/soda/havala/');
+  /// One havala, as the edit form needs it.
+  Future<Havala> byId(int id) async =>
+      Havala.fromJson(asMap(await _api.get('/soda/havala/$id/')));
+
+  /// Havala entries, newest first - within [from]..[to] when given, as the
+  /// desk lists them by date rather than all at once.
+  Future<List<Havala>> list({DateTime? from, DateTime? to}) async {
+    final body = await _api.get('/soda/havala/', query: {
+      if (from != null) 'from_date': AppTime.apiDate(from),
+      if (to != null) 'to_date': AppTime.apiDate(to),
+    });
     final entries = asList(body).map(Havala.fromJson).toList()
       ..sort((a, b) {
         final left = a.date;

@@ -13,8 +13,9 @@ class MasterRepository {
   Future<Map<String, dynamic>> organisationSettings() async =>
       asMap(await _api.get('/organization-settings'));
 
-  Future<List<Map<String, dynamic>>> rows(String path, {Map<String, dynamic>? query}) async =>
-      asList(await _api.get(path, query: query));
+  /// Every row of a master list - all pages, not just the first hundred.
+  Future<List<Map<String, dynamic>>> rows(String path, {Map<String, dynamic>? query}) =>
+      _api.getAll(path, query: query);
 
   /// Matches that were closed and can be reopened.
   /// Everything a result can be taken back off - matches and cups, open or
@@ -25,8 +26,8 @@ class MasterRepository {
   /// reverse. Cups live at their own path and carry no `game` field, so they
   /// are fetched separately and stamped.
   Future<List<GameMatch>> recallableMatches() async {
-    final matches = await rows('/master/matches/', query: {'page_size': 200});
-    final cups = await rows('/master/cups/', query: {'page_size': 200});
+    final matches = await rows('/master/matches/');
+    final cups = await rows('/master/cups/');
 
     return [
       ...matches.map(GameMatch.fromJson),

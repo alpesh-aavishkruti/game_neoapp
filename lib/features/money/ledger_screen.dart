@@ -1,18 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:share_plus/share_plus.dart';
+
+import '../../core/config/app_config.dart';
 import '../../core/network/api_exception.dart';
+import '../auth/auth_controller.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/app_time.dart';
 import '../../core/util/money.dart';
+import '../../data/models/book_row.dart';
 import '../../data/models/ledger_row.dart';
+import '../../data/models/match.dart';
 import '../../data/models/party.dart';
 import '../../data/repositories/book_repository.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../matches/match_providers.dart';
 import 'havala_entry_sheet.dart';
+import 'havala_screen.dart' show havalaRepositoryProvider;
+import '../books/party_soda_screen.dart';
 import '../../shared/widgets/app_dropdown.dart';
 
 final bookRepositoryProvider = Provider<BookRepository>(
@@ -28,6 +36,10 @@ final ledgerProvider =
 /// field replaces the theme's, colour and all, and the selected value comes
 /// out unpainted.
 const _filterText = TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600);
+
+/// Which side of the account is shown: everything, only what the party
+/// receives (Lena), or only what it gives (Dena).
+enum _Side { all, lena, dena }
 
 /// Which rows the check column is being used to pick out.
 enum _Shown {
@@ -74,9 +86,47 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
 
   String _vchType = 'All';
   _Shown _shown = _Shown.all;
+  _Side _side = _Side.all;
 
-  /// Ticked off while reconciling. Session-only, like the desk's own column.
-  final _checked = <int>{};
+  /// Ticks changed here and not yet re-read from the server. The tick itself
+  /// lives on the server (the desk shows the same marks); this only shows a
+  /// change straight away while it is saved.
+  final _overrides = <int, bool>{};
+
+  bool _isChecked(LedgerRow row) => _overrides[row.id] ?? row.isChecked;
+
+  /// Ticks or unticks [rows] and saves it against each line's record. If the
+  /// save fails the marks go back and the reader is told.
+  Future<void> _setChecks(int partyId, List<LedgerRow> rows, bool checked) async {
+    final before = {for (final r in rows) r.id: _overrides[r.id]};
+    setState(() {
+      for (final r in rows) {
+        _overrides[r.id] = checked;
+      }
+    });
+    final saved = [
+      for (final r in rows)
+        if (r.source.isNotEmpty && r.originalId != null)
+          {'source': r.source, 'id': r.originalId},
+    ];
+    if (saved.isEmpty) return;
+    try {
+      await ref.read(apiClientProvider).post(
+        '/master/parties/$partyId/set_ledger_check/',
+        data: {'checked': checked, 'rows': saved},
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        before.forEach((id, value) {
+          value == null ? _overrides.remove(id) : _overrides[id] = value;
+        });
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not save the tick. Please try again.')),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -125,7 +175,8 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
 
   void _open(Party party) => setState(() {
         _party = party;
-        _checked.clear();
+        _overrides.clear();
+        _side = _Side.all;
         if (!_ownDates) {
           _from = null;
           _to = null;
@@ -136,6 +187,48 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   ///
   /// The desk's JUMP: a settlement line says who it was against, and the next
   /// question is always what that side's book looks like.
+  /// Lines with something behind them to open, as "Edit Data" does on the
+  /// desk: a havala, or a match result.
+  bool _openTarget(LedgerRow row) =>
+      (row.source == 'havala' && row.originalId != null) ||
+      (row.matchId != null && row.gameCode.isNotEmpty);
+
+  Future<void> _openRow(LedgerRow row, Party party) async {
+    if (row.source == 'havala' && row.originalId != null) {
+      final messenger = ScaffoldMessenger.of(context);
+      try {
+        final havala = await ref.read(havalaRepositoryProvider).byId(row.originalId!);
+        if (!mounted) return;
+        final saved = await HavalaEntrySheet.show(context, editing: havala);
+        if (saved == true) ref.invalidate(ledgerProvider(party.id));
+      } on ApiException catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      }
+      return;
+    }
+    final matchId = row.matchId;
+    if (matchId == null) return;
+    // The party's bets on the match this result settled - the client's own
+    // on a partnership leg, as the desk drills in.
+    await PartySodaScreen.open(
+      context,
+      match: GameMatch(
+        id: matchId,
+        game: GameType.parse(row.gameCode),
+        nationA: row.description,
+        nationB: '',
+        cupName: row.gameCode == 'CUP' ? row.description : null,
+        isActive: false,
+      ),
+      row: BookRow(
+        partyId: row.drillIntoPartyId(party.id) ?? party.id,
+        code: row.ptrnSourceCode ?? party.code,
+        name: row.ptrnSourceCode == null ? party.name : '',
+        figures: const [],
+      ),
+    );
+  }
+
   Future<void> _jump(String code) async {
     final parties = await ref.read(partiesProvider.future);
     if (!mounted) return;
@@ -174,7 +267,8 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
         _from = null;
         _to = null;
         _ownDates = false;
-        _checked.clear();
+        _overrides.clear();
+        _side = _Side.all;
       });
 
   /// The week ending at the newest entry, which is what the desk opens on.
@@ -203,7 +297,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     }
     if (_vchType != 'All' && row.voucherType != _vchType) return false;
 
-    final on = _checked.contains(row.id);
+    final on = _isChecked(row);
     if (_shown == _Shown.checked && !on) return false;
     if (_shown == _Shown.unchecked && on) return false;
 
@@ -267,6 +361,11 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
               tooltip: 'Share as PDF',
               onPressed: _share,
             ),
+            IconButton(
+              icon: const Icon(Icons.link),
+              tooltip: 'Share statement link',
+              onPressed: () => _shareStatementLink(party),
+            ),
           ],
           IconButton(
             icon: const Icon(Icons.person_search_outlined),
@@ -276,6 +375,23 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
         ],
       ),
       body: body,
+    );
+  }
+
+  /// Sends the party the read-only link to its own statement - havala and
+  /// match lines with the balance - which opens in any browser, no sign-in.
+  Future<void> _shareStatementLink(Party party) async {
+    final auth = ref.read(authControllerProvider);
+    final orgId = auth is SignedIn ? auth.session.organizationId : null;
+    if (orgId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not make the link for this account.')),
+      );
+      return;
+    }
+    final link = AppConfig.partyStatementLink(orgId, party.code);
+    await SharePlus.instance.share(
+      ShareParams(text: link, subject: 'Statement - ${party.code}'),
     );
   }
 
@@ -303,7 +419,16 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
           final from = _ownDates ? _from : fallback?.from;
           final to = _ownDates ? _to : fallback?.to;
 
-          final shown = _apply(data.rows, from, to);
+          // Every other filter first; the Lena / Dena tabs then count and
+          // pick from what is left, so their totals match the period shown.
+          final inRange = _apply(data.rows, from, to);
+          final lenaRows = inRange.where((r) => r.credit != 0).toList();
+          final denaRows = inRange.where((r) => r.debit != 0).toList();
+          final shown = switch (_side) {
+            _Side.all => inRange,
+            _Side.lena => lenaRows,
+            _Side.dena => denaRows,
+          };
 
           final types = <String>{
             for (final row in data.rows)
@@ -314,7 +439,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
           final credit = shown.fold<double>(0, (s, r) => s + r.credit);
           final debit = shown.fold<double>(0, (s, r) => s + r.debit.abs());
           final ticked = shown
-              .where((r) => _checked.contains(r.id))
+              .where(_isChecked)
               .fold<double>(0, (s, r) => s + r.movement);
 
           return Column(
@@ -331,16 +456,22 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                 shown: _shown,
                 onShown: (v) => setState(() => _shown = v),
                 allChecked: shown.isNotEmpty &&
-                    shown.every((r) => _checked.contains(r.id)),
-                onCheckAll: (on) => setState(() {
-                  for (final row in shown) {
-                    on ? _checked.add(row.id) : _checked.remove(row.id);
-                  }
-                }),
+                    shown.every(_isChecked),
+                onCheckAll: (on) => _setChecks(party.id, shown, on),
                 onClear: _clear,
                 balance: data.balance,
                 count: shown.length,
                 total: data.rows.length,
+              ),
+              _SideTabs(
+                side: _side,
+                lenaTotal: lenaRows.fold<double>(0, (s, r) => s + r.credit),
+                lenaCount: lenaRows.length,
+                denaTotal: denaRows.fold<double>(0, (s, r) => s + r.debit.abs()),
+                denaCount: denaRows.length,
+                // Tapping the open tab again goes back to every line.
+                onChanged: (side) =>
+                    setState(() => _side = _side == side ? _Side.all : side),
               ),
               Expanded(
                 child: shown.isEmpty
@@ -363,12 +494,10 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                           final row = shown[shown.length - 1 - i];
                           return _LedgerLine(
                             row: row,
-                            isChecked: _checked.contains(row.id),
-                            onToggle: () => setState(() {
-                              _checked.contains(row.id)
-                                  ? _checked.remove(row.id)
-                                  : _checked.add(row.id);
-                            }),
+                            isChecked: _isChecked(row),
+                            onToggle: () =>
+                                _setChecks(party.id, [row], !_isChecked(row)),
+                            onOpen: _openTarget(row) ? () => _openRow(row, party) : null,
                             onJump: _jumpCode(row) == null
                                 ? null
                                 : () => _jump(_jumpCode(row)!),
@@ -853,6 +982,7 @@ class _LedgerLine extends StatelessWidget {
     required this.onToggle,
     this.onJump,
     this.onDelete,
+    this.onOpen,
   });
 
   final LedgerRow row;
@@ -861,6 +991,9 @@ class _LedgerLine extends StatelessWidget {
   final VoidCallback? onJump;
   final VoidCallback? onDelete;
 
+  /// Opens what the line came from: the havala to edit, or the match's bets.
+  final VoidCallback? onOpen;
+
   @override
   Widget build(BuildContext context) {
     final book = context.book;
@@ -868,7 +1001,7 @@ class _LedgerLine extends StatelessWidget {
     final voucher = '${row.voucherType} ${row.voucherNo}'.trim();
     final byline = [voucher, row.createdBy].where((s) => s.isNotEmpty).join('  ');
 
-    return Container(
+    final line = Container(
       decoration: BoxDecoration(
         color: isChecked
             ? context.scheme.primary.withValues(alpha: 0.06)
@@ -1019,6 +1152,8 @@ class _LedgerLine extends StatelessWidget {
         ],
       ),
     );
+    if (onOpen == null) return line;
+    return InkWell(onTap: onOpen, child: line);
   }
 }
 
@@ -1110,6 +1245,135 @@ class _PartyPickerState extends State<_PartyPicker> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// The Lena / Dena switch at the head of the statement - two pills, like a
+/// scorecard's innings tabs, each carrying its side's total and line count.
+class _SideTabs extends StatelessWidget {
+  const _SideTabs({
+    required this.side,
+    required this.lenaTotal,
+    required this.lenaCount,
+    required this.denaTotal,
+    required this.denaCount,
+    required this.onChanged,
+  });
+
+  final _Side side;
+  final double lenaTotal;
+  final int lenaCount;
+  final double denaTotal;
+  final int denaCount;
+  final ValueChanged<_Side> onChanged;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SidePill(
+                label: 'LENA',
+                total: lenaTotal,
+                count: lenaCount,
+                selected: side == _Side.lena,
+                tone: context.book.up,
+                onTap: () => onChanged(_Side.lena),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _SidePill(
+                label: 'DENA',
+                total: denaTotal,
+                count: denaCount,
+                selected: side == _Side.dena,
+                tone: context.book.down,
+                onTap: () => onChanged(_Side.dena),
+              ),
+            ),
+          ],
+        ),
+      );
+}
+
+class _SidePill extends StatelessWidget {
+  const _SidePill({
+    required this.label,
+    required this.total,
+    required this.count,
+    required this.selected,
+    required this.tone,
+    required this.onTap,
+  });
+
+  final String label;
+  final double total;
+  final int count;
+  final bool selected;
+  final Color tone;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = context.scheme.primary;
+    final fg = selected ? Colors.white : context.scheme.onSurface;
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '$label $count lines',
+      child: Material(
+        color: selected ? brand : context.scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: selected ? brand : context.book.line),
+            ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: fg),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    Money.format(total),
+                    style: TextStyle(
+                      fontFamily: 'Roboto Mono',
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: selected ? Colors.white : tone,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '($count)',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: selected ? Colors.white70 : context.book.muted,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

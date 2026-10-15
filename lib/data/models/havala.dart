@@ -20,6 +20,7 @@ class Havala {
     required this.amount,
     this.description = '',
     this.createdBy = '',
+    this.isChecked = false,
   });
 
   final int id;
@@ -40,6 +41,9 @@ class Havala {
   final String description;
   final String createdBy;
 
+  /// Ticked while reconciling - the same mark the desk and View Party show.
+  final bool isChecked;
+
   factory Havala.fromJson(Map<String, dynamic> json) => Havala(
         id: int.tryParse('${json['id']}') ?? 0,
         voucherNo: (json['voucher_no'] ?? '').toString().trim(),
@@ -53,5 +57,6 @@ class Havala {
         amount: Money.toDouble(json['amount']),
         description: (json['description'] ?? '').toString().trim(),
         createdBy: (json['created_by_name'] ?? '').toString().trim(),
+        isChecked: json['is_checked'] == true,
       );
 }

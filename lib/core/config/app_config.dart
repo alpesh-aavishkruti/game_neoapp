@@ -34,6 +34,17 @@ class AppConfig {
 
   static String get apiRoot => '$apiBaseUrl$apiPrefix';
 
+  /// Where the web desk lives - the read-only statement links a party is
+  /// sent point there, since the party opens them in a browser.
+  static const String webBaseUrl = String.fromEnvironment(
+    'WEB_BASE_URL',
+    defaultValue: 'https://neonacc.com',
+  );
+
+  /// A party's own read-only statement, as the web desk shares it.
+  static String partyStatementLink(Object organizationId, String partyCode) =>
+      '$webBaseUrl/#/ledger/$organizationId/${Uri.encodeComponent(partyCode)}';
+
   static const Duration connectTimeout = Duration(seconds: 20);
   static const Duration receiveTimeout = Duration(seconds: 30);
 }
