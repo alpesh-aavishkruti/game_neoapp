@@ -22,6 +22,7 @@ import 'havala_entry_sheet.dart';
 import 'havala_screen.dart' show havalaRepositoryProvider;
 import '../books/party_soda_screen.dart';
 import '../../shared/widgets/app_dropdown.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 final bookRepositoryProvider = Provider<BookRepository>(
   (ref) => BookRepository(ref.watch(apiClientProvider)),
@@ -404,7 +405,9 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   Widget _statement(Party party) {
     final statement = ref.watch(ledgerProvider(party.id));
 
-    return RefreshIndicator(
+    return RefreshOnShow(
+      providers: [ledgerProvider(party.id)],
+      child: RefreshIndicator(
       onRefresh: () => ref.refresh(ledgerProvider(party.id).future),
       child: AsyncView(
         value: statement,
@@ -516,6 +519,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
           );
         },
       ),
+    ),
     );
   }
 

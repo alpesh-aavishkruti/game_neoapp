@@ -8,6 +8,7 @@ import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../masters/master_providers.dart';
 import 'opening_balance_sheet.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 const openingBalancePath = '/soda/opening-balances/';
 
@@ -23,7 +24,9 @@ class OpeningBalanceScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rows = ref.watch(masterRowsProvider(openingBalancePath));
 
-    return Scaffold(
+    return RefreshOnShow(
+      providers: [masterRowsProvider(openingBalancePath)],
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -60,6 +63,7 @@ class OpeningBalanceScreen extends ConsumerWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

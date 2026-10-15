@@ -11,6 +11,7 @@ import '../../shared/widgets/status_chip.dart';
 import '../matches/match_providers.dart';
 import 'close_match_sheet.dart';
 import '../../shared/widgets/app_dropdown.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 final cupProgressProvider =
     FutureProvider.family<CupProgress, GameMatch>((ref, cup) async {
@@ -121,7 +122,9 @@ class _CupDeclareSheetState extends ConsumerState<CupDeclareSheet> {
     final accounts = ref.watch(accountsProvider);
     final book = context.book;
 
-    return Padding(
+    return RefreshOnShow(
+      providers: [cupProgressProvider(widget.cup)],
+      child: Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SingleChildScrollView(
         child: Padding(
@@ -205,6 +208,7 @@ class _CupDeclareSheetState extends ConsumerState<CupDeclareSheet> {
           ),
         ),
       ),
+    ),
     );
   }
 }

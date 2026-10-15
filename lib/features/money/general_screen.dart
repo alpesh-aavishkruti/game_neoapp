@@ -14,6 +14,7 @@ import '../masters/master_providers.dart';
 import '../matches/match_providers.dart';
 import 'ledger_screen.dart';
 import '../../shared/widgets/app_dropdown.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 /// `dd-MM-yyyy`, which is the only shape this endpoint's `from_date` accepts.
 String _asOfParam(DateTime at) =>
@@ -248,7 +249,9 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
       );
     }
 
-    return Scaffold(
+    return RefreshOnShow(
+      providers: [generalViewProvider(_asOf)],
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('View general'),
         actions: [
@@ -265,6 +268,7 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
           Expanded(child: body),
         ],
       ),
+    ),
     );
   }
 }

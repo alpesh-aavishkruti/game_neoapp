@@ -37,12 +37,17 @@ class _AppShellState extends State<AppShell> {
       // scroll position and all.
       body: IndexedStack(
         index: _index,
-        children: const [
-          MatchListScreen(),
-          MatchListScreen(openBooks: true),
-          ReportsScreen(),
-          PartyMasterScreen(),
-          MoreScreen(),
+        children: [
+          for (final (i, tab) in const [
+            MatchListScreen(),
+            MatchListScreen(openBooks: true),
+            ReportsScreen(),
+            PartyMasterScreen(),
+            MoreScreen(),
+          ].indexed)
+            // Hidden tabs are kept but marked as not on screen, so each one
+            // reads its figures again when it is switched back to.
+            TickerMode(enabled: i == _index, child: tab),
         ],
       ),
       bottomNavigationBar: _BottomBar(

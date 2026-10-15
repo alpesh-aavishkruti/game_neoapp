@@ -6,6 +6,7 @@ import '../../core/util/app_time.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 const _editLogPath = '/soda/edit-logs/';
 
@@ -55,7 +56,9 @@ class _EditHistoryScreenState extends ConsumerState<EditHistoryScreen> {
     final rows = ref.watch(masterRowsProvider(_editLogPath));
     final term = _search.text.trim().toLowerCase();
 
-    return Scaffold(
+    return RefreshOnShow(
+      providers: [masterRowsProvider(_editLogPath)],
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -161,6 +164,7 @@ class _EditHistoryScreenState extends ConsumerState<EditHistoryScreen> {
           },
         ),
       ),
+    ),
     );
   }
 }

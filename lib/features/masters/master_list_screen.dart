@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 /// What one row of a master list shows.
 ///
@@ -105,7 +106,9 @@ class _MasterListScreenState extends ConsumerState<MasterListScreen> {
     final rows = ref.watch(masterRowsProvider(path));
     final term = _search.text.trim().toLowerCase();
 
-    return Scaffold(
+    return RefreshOnShow(
+      providers: [masterRowsProvider(path)],
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,6 +203,7 @@ class _MasterListScreenState extends ConsumerState<MasterListScreen> {
           },
         ),
       ),
+    ),
     );
   }
 

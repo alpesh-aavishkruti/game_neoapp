@@ -8,6 +8,7 @@ import '../../core/util/money.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 const _recycleBinPath = '/soda/recycle-bin/';
 
@@ -158,7 +159,9 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
     final rows = ref.watch(masterRowsProvider(_recycleBinPath));
     final term = _search.text.trim().toLowerCase();
 
-    return Scaffold(
+    return RefreshOnShow(
+      providers: [masterRowsProvider(_recycleBinPath)],
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Recycle bin'),
         actions: [
@@ -250,6 +253,7 @@ class _RecycleBinScreenState extends ConsumerState<RecycleBinScreen> {
           },
         ),
       ),
+    ),
     );
   }
 }

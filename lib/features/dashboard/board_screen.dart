@@ -19,6 +19,7 @@ import 'widgets/exposure_panel.dart';
 import 'widgets/match_flags_bar.dart';
 import 'widgets/run_ladder_strip.dart';
 import '../../shared/widgets/live_refresh.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 /// A match board: position first, entries below.
 ///
@@ -169,7 +170,9 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
   Widget build(BuildContext context) {
     final board = ref.watch(boardProvider(match));
 
-    return LiveRefresh(
+    return RefreshOnShow(
+      providers: [boardProvider(match)],
+      child: LiveRefresh(
       // Other operators' bets appear the moment they are saved.
       matchId: match.id,
       onTick: () => ref.invalidate(boardProvider(match)),
@@ -278,6 +281,7 @@ class _BoardScreenState extends ConsumerState<BoardScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

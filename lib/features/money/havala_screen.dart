@@ -11,6 +11,7 @@ import '../../core/network/api_exception.dart';
 import '../../shared/widgets/async_view.dart';
 import 'auto_havala_sheet.dart';
 import 'havala_entry_sheet.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 final havalaRepositoryProvider = Provider<HavalaRepository>(
   (ref) => HavalaRepository(ref.watch(apiClientProvider)),
@@ -152,7 +153,9 @@ class _HavalaScreenState extends ConsumerState<HavalaScreen> {
   Widget build(BuildContext context) {
     final entries = ref.watch(havalaListProvider(_range));
 
-    return Scaffold(
+    return RefreshOnShow(
+      providers: [havalaListProvider(_range)],
+      child: Scaffold(
       appBar: widget.embedded
           ? null
           : AppBar(
@@ -261,6 +264,7 @@ class _HavalaScreenState extends ConsumerState<HavalaScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }

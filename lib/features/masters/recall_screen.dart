@@ -9,6 +9,7 @@ import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../matches/match_providers.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 /// Reopening a match that was closed too early.
 ///
@@ -138,7 +139,9 @@ class _RecallScreenState extends ConsumerState<RecallScreen> {
     final matches = ref.watch(recallableMatchesProvider);
     final term = _search.text.trim().toLowerCase();
 
-    return Scaffold(
+    return RefreshOnShow(
+      providers: [recallableMatchesProvider],
+      child: Scaffold(
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,6 +230,7 @@ class _RecallScreenState extends ConsumerState<RecallScreen> {
           },
         ),
       ),
+    ),
     );
   }
 }

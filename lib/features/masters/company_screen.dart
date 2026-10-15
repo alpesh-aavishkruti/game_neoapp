@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/field_label.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 final organisationSettingsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   return ref.watch(masterRepositoryProvider).organisationSettings();
@@ -95,7 +96,9 @@ class _CompanyScreenState extends ConsumerState<CompanyScreen> {
   Widget build(BuildContext context) {
     final settings = ref.watch(organisationSettingsProvider);
 
-    return Scaffold(
+    return RefreshOnShow(
+      providers: [organisationSettingsProvider],
+      child: Scaffold(
       appBar: AppBar(title: const Text('Company')),
       body: AsyncView(
         value: settings,
@@ -131,6 +134,7 @@ class _CompanyScreenState extends ConsumerState<CompanyScreen> {
           );
         },
       ),
+    ),
     );
   }
 }

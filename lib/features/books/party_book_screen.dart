@@ -13,6 +13,7 @@ import '../money/ledger_screen.dart';
 import 'party_soda_screen.dart';
 import '../../shared/widgets/check_tick.dart';
 import '../../shared/widgets/live_refresh.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 final matchBookProvider = FutureProvider.family<MatchBook, ({GameMatch match, BookKind kind})>((
   ref,
@@ -141,7 +142,9 @@ class _BookTable extends ConsumerWidget {
     final book = ref.watch(matchBookProvider(args));
     final sides = match.bookColumns;
 
-    return RefreshIndicator(
+    return RefreshOnShow(
+      providers: [matchBookProvider(args)],
+      child: RefreshIndicator(
       onRefresh: () => ref.refresh(matchBookProvider(args).future),
       child: AsyncView(
         value: book,
@@ -180,6 +183,7 @@ class _BookTable extends ConsumerWidget {
           ],
         ),
       ),
+    ),
     );
   }
 }

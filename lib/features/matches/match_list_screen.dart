@@ -12,6 +12,7 @@ import '../books/party_book_screen.dart';
 import '../dashboard/board_screen.dart';
 import 'match_providers.dart';
 import 'new_match_sheet.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 /// Every match, and where it stands.
 ///
@@ -102,7 +103,9 @@ class _MatchTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final matches = ref.watch(activeMatchesProvider(game));
 
-    return RefreshIndicator(
+    return RefreshOnShow(
+      providers: [activeMatchesProvider(game)],
+      child: RefreshIndicator(
       onRefresh: () => ref.refresh(activeMatchesProvider(game).future),
       child: AsyncView(
         value: matches,
@@ -119,6 +122,7 @@ class _MatchTab extends ConsumerWidget {
               _MatchCard(match: list[i], openBooks: openBooks),
         ),
       ),
+    ),
     );
   }
 }
@@ -205,7 +209,9 @@ class _CardPositions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final board = ref.watch(boardProvider(match));
 
-    return board.when(
+    return RefreshOnShow(
+      providers: [boardProvider(match)],
+      child: board.when(
       loading: () => const _PositionsPlaceholder(),
       error: (_, _) => Text('Position unavailable', style: context.text.bodySmall),
       data: (data) {
@@ -254,6 +260,7 @@ class _CardPositions extends ConsumerWidget {
           ],
         );
       },
+    ),
     );
   }
 }

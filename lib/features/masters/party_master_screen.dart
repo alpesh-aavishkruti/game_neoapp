@@ -8,6 +8,7 @@ import '../../shared/widgets/async_view.dart';
 import '../matches/match_providers.dart';
 import '../money/ledger_screen.dart';
 import 'party_edit_sheet.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 /// Party master.
 ///
@@ -41,7 +42,9 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
   Widget build(BuildContext context) {
     final parties = ref.watch(partiesProvider);
 
-    return Scaffold(
+    return RefreshOnShow(
+      providers: [partiesProvider],
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Parties'),
         bottom: PreferredSize(
@@ -127,6 +130,7 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
           },
         ),
       ),
+    ),
     );
   }
 }

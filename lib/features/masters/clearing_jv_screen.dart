@@ -7,6 +7,7 @@ import '../../core/util/money.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import 'master_providers.dart';
+import '../../shared/widgets/refresh_on_show.dart';
 
 /// Clearing journal vouchers.
 ///
@@ -76,7 +77,9 @@ class _VoucherList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rows = ref.watch(masterRowsProvider(path));
 
-    return RefreshIndicator(
+    return RefreshOnShow(
+      providers: [masterRowsProvider(path)],
+      child: RefreshIndicator(
       onRefresh: () => ref.refresh(masterRowsProvider(path).future),
       child: AsyncView(
         value: rows,
@@ -89,6 +92,7 @@ class _VoucherList extends ConsumerWidget {
           itemBuilder: (context, i) => _VoucherRow(row: list[i]),
         ),
       ),
+    ),
     );
   }
 }
