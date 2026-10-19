@@ -39,7 +39,22 @@ class NeonApp extends ConsumerWidget {
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(textScaler: scale),
           // Wraps every screen and sheet, so any touch anywhere counts.
-          child: IdleSignOut(child: child ?? const SizedBox.shrink()),
+          child: IdleSignOut(
+            // Android 15+ draws every app under the system navigation bar,
+            // and the three-button bar then covered the last rows of a list,
+            // the board's Add button and the save buttons at the foot of
+            // entry sheets (a bottom sheet keeps clear of the top and sides
+            // only). Keeping every screen, sheet and dialog above the bar here
+            // covers them all at once, on any phone and either kind of
+            // navigation; the strip behind the bar keeps the page colour.
+            child: ColoredBox(
+              color: Theme.of(context).colorScheme.surface,
+              child: SafeArea(
+                top: false,
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
+          ),
         );
       },
       home: switch (auth) {

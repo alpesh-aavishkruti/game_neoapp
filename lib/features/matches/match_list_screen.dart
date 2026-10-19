@@ -12,6 +12,7 @@ import '../books/party_book_screen.dart';
 import '../dashboard/board_screen.dart';
 import 'match_providers.dart';
 import 'new_match_sheet.dart';
+import '../../shared/widgets/live_refresh.dart';
 import '../../shared/widgets/refresh_on_show.dart';
 
 /// Every match, and where it stands.
@@ -209,7 +210,12 @@ class _CardPositions extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final board = ref.watch(boardProvider(match));
 
-    return RefreshOnShow(
+    return LiveRefresh(
+      // A bet saved anywhere - the desk or another phone - moves the card
+      // straight away, not only once its board has been opened.
+      matchId: match.id,
+      onTick: () => ref.invalidate(boardProvider(match)),
+      child: RefreshOnShow(
       providers: [boardProvider(match)],
       child: board.when(
       loading: () => const _PositionsPlaceholder(),
@@ -260,6 +266,7 @@ class _CardPositions extends ConsumerWidget {
           ],
         );
       },
+    ),
     ),
     );
   }

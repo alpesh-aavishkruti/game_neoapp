@@ -144,4 +144,45 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
   });
+
+  testWidgets('a card in a tab switched away from waits until the tab is back', (tester) async {
+    final socket = _FakeSocket();
+    var ticks = 0;
+    var shown = true;
+    late StateSetter setShown;
+
+    await tester.pumpWidget(MaterialApp(
+      home: StatefulBuilder(builder: (context, setState) {
+        setShown = setState;
+        return TickerMode(
+          enabled: shown,
+          child: LiveRefresh(
+            matchId: 7,
+            onTick: () => ticks++,
+            connector: (_) async => socket,
+            child: const Scaffold(body: Text('card')),
+          ),
+        );
+      }),
+    ));
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+
+    setShown(() => shown = false);
+    await tester.pump();
+    await tester.runAsync(() async {
+      socket.say(_change);
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    });
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(ticks, 0, reason: 'a hidden tab is not read');
+
+    setShown(() => shown = true);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(ticks, 1, reason: 'the change heard while hidden is read on return');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
+  });
 }

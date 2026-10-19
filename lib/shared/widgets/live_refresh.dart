@@ -66,6 +66,16 @@ class _LiveRefreshState extends State<LiveRefresh> with WidgetsBindingObserver {
     _startFeed();
   }
 
+  /// False while this sits in a tab that is switched away from; the tab
+  /// reads its figures again when it comes back (see RefreshOnShow).
+  bool _tabShown = true;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _tabShown = TickerMode.valuesOf(context).enabled;
+  }
+
   @override
   void didUpdateWidget(LiveRefresh old) {
     super.didUpdateWidget(old);
@@ -114,7 +124,7 @@ class _LiveRefreshState extends State<LiveRefresh> with WidgetsBindingObserver {
   }
 
   bool get _inFront {
-    if (!mounted) return false;
+    if (!mounted || !_tabShown) return false;
     final state = WidgetsBinding.instance.lifecycleState;
     if (state != null && state != AppLifecycleState.resumed) return false;
     return ModalRoute.of(context)?.isCurrent ?? true;
