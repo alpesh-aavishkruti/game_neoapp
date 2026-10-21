@@ -39,6 +39,21 @@ class BookRow {
   final CheckState checkState;
 
   factory BookRow.fromJson(Map<String, dynamic> json) {
+    // A session's partner book gives each partner one figure - their share -
+    // rather than a K and an L; reading K and L off it showed every partner
+    // at 0.00 while the desk showed the share.
+    if (isPartnerValueRow(json)) {
+      return BookRow(
+        partyId: int.tryParse('${json['party_id']}') ?? 0,
+        code: (json['party_code'] ?? '').toString().trim().toUpperCase(),
+        name: (json['party_name'] ?? json['code_party_name'] ?? '').toString().trim(),
+        figures: [
+          Money.toDouble(json['value'] ?? json['value_total'] ?? json['partner_value']),
+        ],
+        checkState: CheckState.parse(json['check_status']),
+      );
+    }
+
     // A session's books are ruled K and L rather than by team, and its rows
     // say so - there is no nation figure on them at all.
     if (json.containsKey('k_total') || json.containsKey('l_total')) {
@@ -76,13 +91,24 @@ class BookRow {
       checkState: CheckState.parse(json['check_status']),
     );
   }
+
+  /// A line carrying a single partner value instead of figures per side.
+  static bool isPartnerValueRow(Map<String, dynamic> json) =>
+      (json.containsKey('partner_value') || json.containsKey('value_total')) &&
+      !json.containsKey('k_total') &&
+      !json.containsKey('l_total') &&
+      !json.containsKey('nation1_pl');
 }
 
 /// A whole book: the rows, plus the totals that must stay pinned.
 class MatchBook {
-  const MatchBook({required this.rows, required this.totals});
+  const MatchBook({required this.rows, required this.totals, this.columns});
 
   final List<BookRow> rows;
+
+  /// Column headings when this book is not ruled by the match's own sides -
+  /// a session's partner book has one, the partner's value. Null otherwise.
+  final List<String>? columns;
 
   /// The grand total per side. Kept in view however far the list scrolls,
   /// because it is the figure the book is checked against.
@@ -91,12 +117,18 @@ class MatchBook {
   static const empty = MatchBook(rows: [], totals: []);
 
   factory MatchBook.fromJson(Map<String, dynamic> json) {
-    final rows = (json['parties'] is List)
-        ? (json['parties'] as List)
-            .whereType<Map>()
-            .map((e) => BookRow.fromJson(Map<String, dynamic>.from(e)))
-            .toList()
-        : <BookRow>[];
+    final raw = (json['parties'] is List)
+        ? (json['parties'] as List).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList()
+        : <Map<String, dynamic>>[];
+    final rows = raw.map(BookRow.fromJson).toList();
+
+    if (raw.isNotEmpty && raw.every(BookRow.isPartnerValueRow)) {
+      return MatchBook(
+        rows: rows,
+        totals: [rows.fold<double>(0, (sum, r) => sum + r.figures.first)],
+        columns: const ['PARTNER VALUE'],
+      );
+    }
 
     final totals = <double>[
       Money.toDouble(json['total_a']),

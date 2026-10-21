@@ -31,17 +31,47 @@ class AsyncView<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) => value.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => _Failure(
-          message: error is ApiException
-              ? error.message
-              : 'Something went wrong. Please try again.',
-          onRetry: onRetry,
+        error: (error, _) => _Pullable(
+          child: _Failure(
+            message: error is ApiException
+                ? error.message
+                : 'Something went wrong. Please try again.',
+            onRetry: onRetry,
+          ),
         ),
         data: (data) {
           if (isEmpty?.call(data) == true) {
-            return _Empty(title: emptyTitle, message: emptyMessage);
+            return _Pullable(child: _Empty(title: emptyTitle, message: emptyMessage));
           }
           return builder(data);
+        },
+      );
+}
+
+/// Lets an empty or failed screen be pulled down to refresh.
+///
+/// A pull to refresh only fires on something that scrolls, and the empty and
+/// failure messages did not - so on an empty Matches tab the operator pulled
+/// and pulled and nothing was read, and a match made on the desk only showed
+/// up once something else happened to reload the list. In a fixed height the
+/// message now sits in a scroll view the full height of the screen; anywhere
+/// else (inside a list, say) it is left as it was.
+class _Pullable extends StatelessWidget {
+  const _Pullable({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          if (!constraints.hasBoundedHeight) return child;
+          return SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(child: child),
+            ),
+          );
         },
       );
 }

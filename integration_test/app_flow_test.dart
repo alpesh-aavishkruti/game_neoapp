@@ -164,6 +164,17 @@ void main() {
     await openTab(tester, 'Reports');
     await shot(tester, '11_reports');
 
+    // View General: Dena on the left, Lena on the right, one list at a time.
+    expect(find.text('GIVEN AMOUNTS (DENA)'), findsOneWidget);
+    expect(find.text('TAKE AMOUNTS (LENA)'), findsNothing);
+    await tester.tap(find.text('LENA').first);
+    await settle(tester);
+    expect(find.text('TAKE AMOUNTS (LENA)'), findsOneWidget);
+    expect(find.text('GIVEN AMOUNTS (DENA)'), findsNothing);
+    await shot(tester, '11a_view_general_lena');
+    await tester.tap(find.text('DENA').first);
+    await settle(tester);
+
     // The havala list: dates, search, and a tick saved to the server.
     await tester.ensureVisible(find.text('HAVALA'));
     await settle(tester);

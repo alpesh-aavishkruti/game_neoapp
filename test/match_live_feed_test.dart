@@ -185,4 +185,32 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
   });
+
+  test("a company's matches channel is followed by its path", () async {
+    final socket = _FakeSocket();
+    final uris = <Uri>[];
+    var reads = 0;
+    expect(
+      MatchLiveFeed.socketUriFor('/ws/org/26/matches/', apiBaseUrl: 'https://api.neonacc.com').toString(),
+      'wss://api.neonacc.com/ws/org/26/matches/',
+    );
+    final feed = MatchLiveFeed(
+      path: '/ws/org/26/matches/',
+      onChange: () => reads++,
+      debounce: const Duration(milliseconds: 10),
+      connector: (uri) async {
+        uris.add(uri);
+        return socket;
+      },
+    );
+    feed.start();
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    expect(uris.single.path, '/ws/org/26/matches/');
+
+    socket.say({'type': 'matches_changed', 'game_type': 'one_day', 'match_id': '9', 'data': {}});
+    await Future<void>.delayed(const Duration(milliseconds: 40));
+    expect(reads, 1, reason: 'a match opened on the desk re-reads the list');
+
+    await feed.stop();
+  });
 }

@@ -15,6 +15,7 @@ import '../matches/match_providers.dart';
 import 'ledger_screen.dart';
 import '../../shared/widgets/app_dropdown.dart';
 import '../../shared/widgets/refresh_on_show.dart';
+import '../../shared/widgets/side_pill.dart';
 
 /// `dd-MM-yyyy`, which is the only shape this endpoint's `from_date` accepts.
 String _asOfParam(DateTime at) =>
@@ -65,6 +66,11 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
   DateTime? _asOf = AppTime.today;
   int? _categoryId;
   bool _byAmount = false;
+
+  /// Which list is shown: Dena (given) or Lena (take). One at a time, picked
+  /// from the two pills at the top, so the Lena side no longer sits below a
+  /// long Dena list that had to be scrolled past.
+  bool _showLena = false;
 
   /// Ticks changed here and not yet re-read. The tick itself is kept on the
   /// server, so the desk and every phone see the same marks.
@@ -194,29 +200,60 @@ class _GeneralScreenState extends ConsumerState<GeneralScreen> {
 
           return Column(
             children: [
+              // Dena on the left, Lena on the right, as the client asked.
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: SidePill(
+                        label: 'DENA',
+                        total: totalGiven,
+                        count: given.length,
+                        selected: !_showLena,
+                        tone: context.book.down,
+                        onTap: () => setState(() => _showLena = false),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SidePill(
+                        label: 'LENA',
+                        total: totalTake,
+                        count: take.length,
+                        selected: _showLena,
+                        tone: context.book.up,
+                        onTap: () => setState(() => _showLena = true),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               Expanded(
                 child: ListView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.only(bottom: 16),
                   children: [
-                    _Side(
-                      title: 'GIVEN AMOUNTS (DENA)',
-                      lines: given,
-                      total: totalGiven,
-                      isCredit: true,
-                      checked: checked,
-                      onToggle: toggle,
-                      onToggleAll: (on) => _toggleAll(given, on),
-                    ),
-                    _Side(
-                      title: 'TAKE AMOUNTS (LENA)',
-                      lines: take,
-                      total: totalTake,
-                      isCredit: false,
-                      checked: checked,
-                      onToggle: toggle,
-                      onToggleAll: (on) => _toggleAll(take, on),
-                    ),
+                    if (!_showLena)
+                      _Side(
+                        title: 'GIVEN AMOUNTS (DENA)',
+                        lines: given,
+                        total: totalGiven,
+                        isCredit: true,
+                        checked: checked,
+                        onToggle: toggle,
+                        onToggleAll: (on) => _toggleAll(given, on),
+                      )
+                    else
+                      _Side(
+                        title: 'TAKE AMOUNTS (LENA)',
+                        lines: take,
+                        total: totalTake,
+                        isCredit: false,
+                        checked: checked,
+                        onToggle: toggle,
+                        onToggleAll: (on) => _toggleAll(take, on),
+                      ),
                   ],
                 ),
               ),

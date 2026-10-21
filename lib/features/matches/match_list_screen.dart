@@ -10,6 +10,7 @@ import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../books/party_book_screen.dart';
 import '../dashboard/board_screen.dart';
+import '../auth/auth_controller.dart';
 import 'match_providers.dart';
 import 'new_match_sheet.dart';
 import '../../shared/widgets/live_refresh.dart';
@@ -104,7 +105,17 @@ class _MatchTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final matches = ref.watch(activeMatchesProvider(game));
 
-    return RefreshOnShow(
+    // The company's channel announces a match opened, closed or deleted
+    // anywhere, so the list re-reads at once; the timer is only the fallback
+    // while that line is down.
+    final auth = ref.watch(authControllerProvider);
+    final orgId = auth is SignedIn ? auth.session.organizationId : null;
+
+    return LiveRefresh(
+      // A match opened on the desk turns up here without a pull to refresh.
+      socketPath: orgId == null ? null : '/ws/org/$orgId/matches/',
+      onTick: () => ref.invalidate(activeMatchesProvider(game)),
+      child: RefreshOnShow(
       providers: [activeMatchesProvider(game)],
       child: RefreshIndicator(
       onRefresh: () => ref.refresh(activeMatchesProvider(game).future),
@@ -123,6 +134,7 @@ class _MatchTab extends ConsumerWidget {
               _MatchCard(match: list[i], openBooks: openBooks),
         ),
       ),
+    ),
     ),
     );
   }

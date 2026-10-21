@@ -23,6 +23,7 @@ import 'havala_screen.dart' show havalaRepositoryProvider;
 import '../books/party_soda_screen.dart';
 import '../../shared/widgets/app_dropdown.dart';
 import '../../shared/widgets/refresh_on_show.dart';
+import '../../shared/widgets/side_pill.dart';
 
 final bookRepositoryProvider = Provider<BookRepository>(
   (ref) => BookRepository(ref.watch(apiClientProvider)),
@@ -1279,7 +1280,7 @@ class _SideTabs extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: _SidePill(
+              child: SidePill(
                 label: 'LENA',
                 total: lenaTotal,
                 count: lenaCount,
@@ -1290,7 +1291,7 @@ class _SideTabs extends StatelessWidget {
             ),
             const SizedBox(width: 8),
             Expanded(
-              child: _SidePill(
+              child: SidePill(
                 label: 'DENA',
                 total: denaTotal,
                 count: denaCount,
@@ -1302,83 +1303,4 @@ class _SideTabs extends StatelessWidget {
           ],
         ),
       );
-}
-
-class _SidePill extends StatelessWidget {
-  const _SidePill({
-    required this.label,
-    required this.total,
-    required this.count,
-    required this.selected,
-    required this.tone,
-    required this.onTap,
-  });
-
-  final String label;
-  final double total;
-  final int count;
-  final bool selected;
-  final Color tone;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final brand = context.scheme.primary;
-    final fg = selected ? Colors.white : context.scheme.onSurface;
-
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '$label $count lines',
-      child: Material(
-        color: selected ? brand : context.scheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: onTap,
-          child: Container(
-            height: 48,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: selected ? brand : context.book.line),
-            ),
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    label,
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: fg),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    Money.format(total),
-                    style: TextStyle(
-                      fontFamily: 'Roboto Mono',
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: selected ? Colors.white : tone,
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                  Text(
-                    '($count)',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: selected ? Colors.white70 : context.book.muted,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

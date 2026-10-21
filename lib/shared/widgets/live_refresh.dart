@@ -24,6 +24,7 @@ class LiveRefresh extends StatefulWidget {
     required this.onTick,
     required this.child,
     this.matchId,
+    this.socketPath,
     this.every = const Duration(seconds: 15),
     this.connector,
   });
@@ -31,8 +32,13 @@ class LiveRefresh extends StatefulWidget {
   final VoidCallback onTick;
   final Widget child;
 
-  /// The match whose live changes to follow; without one only the timer runs.
+  /// The match whose live changes to follow; without one (or a [socketPath])
+  /// only the timer runs.
   final int? matchId;
+
+  /// Another live channel to follow instead, by its path - a company's list
+  /// of matches, say.
+  final String? socketPath;
   final Duration every;
 
   /// Stands in for the real socket in tests.
@@ -79,7 +85,7 @@ class _LiveRefreshState extends State<LiveRefresh> with WidgetsBindingObserver {
   @override
   void didUpdateWidget(LiveRefresh old) {
     super.didUpdateWidget(old);
-    if (old.matchId != widget.matchId) {
+    if (old.matchId != widget.matchId || old.socketPath != widget.socketPath) {
       _stopFeed();
       _startFeed();
     }
@@ -95,8 +101,15 @@ class _LiveRefreshState extends State<LiveRefresh> with WidgetsBindingObserver {
 
   void _startFeed() {
     final id = widget.matchId;
-    if (id == null || (widget.connector == null && !LiveRefresh.socketsEnabled)) return;
-    _feed = MatchLiveFeed(matchId: id, onChange: _onLive, connector: widget.connector)..start();
+    final path = widget.socketPath;
+    if (id == null && path == null) return;
+    if (widget.connector == null && !LiveRefresh.socketsEnabled) return;
+    _feed = MatchLiveFeed(
+      matchId: id,
+      path: path,
+      onChange: _onLive,
+      connector: widget.connector,
+    )..start();
     _pendingCheck = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (_pending && _inFront) _tick();
     });

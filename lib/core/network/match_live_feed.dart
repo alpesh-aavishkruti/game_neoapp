@@ -45,16 +45,23 @@ Future<LiveSocket> _connectIo(Uri uri) async => _IoLiveSocket(
 /// was missed), and a line gone silent for a minute is treated as dead.
 class MatchLiveFeed {
   MatchLiveFeed({
-    required this.matchId,
+    this.matchId,
+    this.path,
     required this.onChange,
     LiveSocketConnector? connector,
     this.debounce = const Duration(milliseconds: 250),
     this.reconnectAfter = const Duration(seconds: 3),
     this.pingEvery = const Duration(seconds: 25),
     this.silentLimit = const Duration(seconds: 60),
-  }) : _connector = connector ?? _connectIo;
+  }) : assert(matchId != null || path != null),
+       _connector = connector ?? _connectIo;
 
-  final int matchId;
+  /// The match whose bets to follow (`/ws/match/<id>/`)...
+  final int? matchId;
+
+  /// ...or another channel by its path, such as a company's list of matches
+  /// (`/ws/org/<id>/matches/`).
+  final String? path;
 
   /// Called when the match's book has changed and should be read again.
   final void Function() onChange;
@@ -80,13 +87,17 @@ class MatchLiveFeed {
   bool get isOpen => _socket != null;
 
   /// `wss://api.example.com/ws/match/12/` for an `https://api.example.com` backend.
-  static Uri socketUri(int matchId, {String? apiBaseUrl}) {
+  static Uri socketUri(int matchId, {String? apiBaseUrl}) =>
+      socketUriFor('/ws/match/$matchId/', apiBaseUrl: apiBaseUrl);
+
+  /// The socket address for [path] on the backend the app points at.
+  static Uri socketUriFor(String path, {String? apiBaseUrl}) {
     final api = Uri.parse(apiBaseUrl ?? AppConfig.apiBaseUrl);
     return Uri(
       scheme: api.scheme == 'https' ? 'wss' : 'ws',
       host: api.host,
       port: api.hasPort ? api.port : null,
-      path: '/ws/match/$matchId/',
+      path: path,
     );
   }
 
@@ -109,7 +120,9 @@ class MatchLiveFeed {
     if (_stopped || _connecting || _socket != null) return;
     _connecting = true;
     try {
-      final socket = await _connector(socketUri(matchId));
+      final socket = await _connector(
+        path != null ? socketUriFor(path!) : socketUri(matchId!),
+      );
       if (_stopped) {
         await socket.close();
         return;
@@ -147,7 +160,9 @@ class MatchLiveFeed {
       _serverAnswersPing = true;
       return;
     }
-    if (type == 'entry_change' || type == 'broadcast_update') _changed();
+    if (type == 'entry_change' || type == 'broadcast_update' || type == 'matches_changed') {
+      _changed();
+    }
   }
 
   void _changed() {

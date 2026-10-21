@@ -140,7 +140,9 @@ class _BookTable extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final args = (match: match, kind: kind);
     final book = ref.watch(matchBookProvider(args));
-    final sides = match.bookColumns;
+    // A book can be ruled differently from the match (a session's partner
+    // book has a single partner value), so it may name its own columns.
+    final sides = book.value?.columns ?? match.bookColumns;
 
     return RefreshOnShow(
       providers: [matchBookProvider(args)],
