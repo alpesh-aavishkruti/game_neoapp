@@ -14,7 +14,12 @@ class TokenStore {
               // Android encrypts by default from v11 on; on iOS, first_unlock
               // keeps a background refresh working after a reboot while still
               // keeping the token out of reach on a locked handset.
-              aOptions: AndroidOptions(),
+              //
+              // resetOnError: a reinstalled or restored phone can bring back
+              // the encrypted file without the key that opens it. Reading it
+              // then failed, and the app sat on its loading spinner for good;
+              // now the unreadable login is wiped and the sign-in form shows.
+              aOptions: AndroidOptions(resetOnError: true),
               iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
             );
 

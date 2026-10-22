@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/network/api_exception.dart';
@@ -38,12 +40,25 @@ class MustChangePassword extends AuthState {
 }
 
 class SignedIn extends AuthState {
-  const SignedIn(this.session, {this.permissions = const {}});
+  const SignedIn(this.session, {this.permissions = const {}, this.menuKeys, this.rights});
   final Session session;
   final Map<String, dynamic> permissions;
+
+  /// The menu entries this user's role may open (see MenuAccess). Null when
+  /// they could not be read, which hides nothing.
+  final Set<String>? menuKeys;
+
+  /// The user's rights by name (see MenuAccess). Null when unknown, which
+  /// hides nothing.
+  final Set<String>? rights;
 }
 
 class AuthController extends Notifier<AuthState> {
+  /// How long picking up the saved login may take before the sign-in form is
+  /// shown anyway. Off under `flutter test`, where no platform answers.
+  static Duration? restoreLimit =
+      Platform.environment.containsKey('FLUTTER_TEST') ? null : const Duration(seconds: 40);
+
   @override
   AuthState build() {
     // When a refresh fails there is no session left to save, and the client is
@@ -63,13 +78,27 @@ class AuthController extends Notifier<AuthState> {
     return const AuthUnknown();
   }
 
+  /// Picks up the saved login, if any. Whatever goes wrong - an unreadable
+  /// saved login, a network that never answers - ends on the sign-in form:
+  /// a failure here used to leave the app on its loading spinner for good.
   Future<void> restore() async {
-    final session = await ref.read(authRepositoryProvider).restore();
-    if (session == null) {
-      state = const SignedOut();
-      return;
+    try {
+      final restoring = ref.read(authRepositoryProvider).restore();
+      final limit = restoreLimit;
+      final session = limit == null ? await restoring : await restoring.timeout(limit);
+      if (session == null) {
+        if (state is AuthUnknown) state = const SignedOut();
+        return;
+      }
+      final permissions = await _permissions();
+      final menuKeys = await _menuKeys();
+      final rights = await _rights();
+      if (state is AuthUnknown) {
+        state = SignedIn(session, permissions: permissions, menuKeys: menuKeys, rights: rights);
+      }
+    } catch (_) {
+      if (state is AuthUnknown) state = const SignedOut();
     }
-    state = SignedIn(session, permissions: await _permissions());
   }
 
   /// Throws [ApiException] so the form can show the message against the field
@@ -82,7 +111,12 @@ class AuthController extends Notifier<AuthState> {
     state = switch (result) {
       LoggedIn(:final session) when session.mustChangePassword =>
         MustChangePassword(givenPassword: password),
-      LoggedIn(:final session) => SignedIn(session, permissions: await _permissions()),
+      LoggedIn(:final session) => SignedIn(
+          session,
+          permissions: await _permissions(),
+          menuKeys: await _menuKeys(),
+          rights: await _rights(),
+        ),
       TwoFactorChallenge challenge =>
         AwaitingTwoFactor(challenge, givenPassword: password),
     };
@@ -99,7 +133,12 @@ class AuthController extends Notifier<AuthState> {
       state = MustChangePassword(givenPassword: current.givenPassword);
       return;
     }
-    state = SignedIn(session, permissions: await _permissions());
+    state = SignedIn(
+      session,
+      permissions: await _permissions(),
+      menuKeys: await _menuKeys(),
+      rights: await _rights(),
+    );
   }
 
   /// Replaces the admin-given password with the user's own, then signs out so
@@ -140,10 +179,30 @@ class AuthController extends Notifier<AuthState> {
     state = const SignedOut(message: 'Your session has ended. Please sign in again.');
   }
 
+  /// The menu entries the role may open; null (hide nothing) if they cannot
+  /// be read or none came back - an empty sidebar is far more likely a role
+  /// set up without menus than a user meant to see nothing at all.
+  Future<Set<String>?> _rights() async {
+    try {
+      return await ref.read(authRepositoryProvider).rights();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Set<String>?> _menuKeys() async {
+    try {
+      final keys = await ref.read(authRepositoryProvider).menuKeys();
+      return keys.isEmpty ? null : keys;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<Map<String, dynamic>> _permissions() async {
     try {
       return await ref.read(authRepositoryProvider).permissions();
-    } on ApiException {
+    } catch (_) {
       // A missing permission list should not block sign-in; screens fall back
       // to hiding what they cannot confirm.
       return const {};

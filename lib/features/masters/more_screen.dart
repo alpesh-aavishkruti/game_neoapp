@@ -23,6 +23,7 @@ import 'user_edit_sheet.dart';
 import 'recall_screen.dart';
 import 'recycle_bin_screen.dart';
 import '../money/opening_balance_screen.dart';
+import '../auth/menu_access.dart';
 
 /// Everything set up once and used rarely.
 ///
@@ -33,11 +34,27 @@ class MoreScreen extends ConsumerWidget {
 
   /// Each tile names where it goes. The masters are read-only here: the app is
   /// for running the book, and setting one up is still done at the desk.
-  static List<({IconData icon, String title, String subtitle, Widget Function() open})>
+  ///
+  /// [menu] names the desk menu entries behind the tile: the tile shows only
+  /// when the user's role may open one of them (none listed: always shown).
+  /// [rights] are what the tile's own list asks the server for; all of them
+  /// are needed too, since a menu entry can show for a role that may not read
+  /// the list (Brokerage has no menu entry of its own at all).
+  static List<
+      ({
+        IconData icon,
+        String title,
+        String subtitle,
+        List<String> menu,
+        List<String> rights,
+        Widget Function() open,
+      })>
   get _items => [
     (
       icon: Icons.storefront_outlined,
       title: 'Match master',
+      menu: [MenuKey.matchMaster],
+      rights: ['master.view_matchmaster'],
       subtitle: 'Teams, dates, PTRN setting',
       open: () => MasterListScreen(
         title: 'Match master',
@@ -83,6 +100,8 @@ class MoreScreen extends ConsumerWidget {
     (
       icon: Icons.emoji_events_outlined,
       title: 'Cup master',
+      menu: [MenuKey.cupMaster],
+      rights: ['master.view_cupmaster'],
       subtitle: 'Cup teams and results',
       open: () => MasterListScreen(
         title: 'Cup master',
@@ -114,6 +133,8 @@ class MoreScreen extends ConsumerWidget {
     (
       icon: Icons.percent,
       title: 'Brokerage',
+      menu: [MenuKey.party],
+      rights: ['master.view_partybrokerage'],
       subtitle: 'Per party, per category',
       open: () => MasterListScreen(
         title: 'Brokerage',
@@ -133,6 +154,8 @@ class MoreScreen extends ConsumerWidget {
     (
       icon: Icons.sell_outlined,
       title: 'Party category',
+      menu: [MenuKey.partyCategory],
+      rights: ['master.view_partycategory'],
       subtitle: 'A / B / C grouping',
       open: () => MasterListScreen(
         title: 'Party category',
@@ -167,6 +190,8 @@ class MoreScreen extends ConsumerWidget {
     (
       icon: Icons.receipt_long_outlined,
       title: 'Document code',
+      menu: [MenuKey.documentCode],
+      rights: ['master.view_documentcodeconfig'],
       subtitle: 'Voucher numbering',
       open: () => MasterListScreen(
         title: 'Document code',
@@ -199,6 +224,8 @@ class MoreScreen extends ConsumerWidget {
     (
       icon: Icons.people_outline,
       title: 'Users',
+      menu: [MenuKey.users],
+      rights: ['authentication.view_employee'],
       subtitle: 'Who can sign in',
       // Whether this opens depends on the account's own rights; the screen
       // reports that plainly rather than the tile pretending it cannot exist.
@@ -246,6 +273,8 @@ class MoreScreen extends ConsumerWidget {
     (
       icon: Icons.admin_panel_settings_outlined,
       title: 'Roles & rights',
+      menu: [MenuKey.roles],
+      rights: ['authentication.view_roles'],
       subtitle: 'What each role may open',
       open: () => MasterListScreen(
         title: 'Roles',
@@ -271,54 +300,72 @@ class MoreScreen extends ConsumerWidget {
     (
       icon: Icons.account_balance_wallet_outlined,
       title: 'Opening balance',
+      menu: [MenuKey.openingBalance],
+      rights: ['soda.view_openingbalance'],
       subtitle: 'Carried forward figures',
       open: () => const OpeningBalanceScreen(),
     ),
     (
       icon: Icons.security_outlined,
       title: 'Security',
+      menu: [],
+      rights: [],
       subtitle: 'Two-factor verification',
       open: () => const SecurityScreen(),
     ),
     (
       icon: Icons.domain_outlined,
       title: 'Company',
+      menu: [MenuKey.company],
+      rights: [],
       subtitle: 'Name and address on reports',
       open: () => const CompanyScreen(),
     ),
     (
       icon: Icons.history,
       title: 'Recall entry',
+      menu: [MenuKey.recall],
+      rights: ['master.view_matchmaster'],
       subtitle: 'Reopen a closed match',
       open: () => const RecallScreen(),
     ),
     (
       icon: Icons.account_balance_outlined,
       title: 'Clearing JV',
+      menu: [MenuKey.clearingJv, MenuKey.inflowClearingJv],
+      rights: [],
       subtitle: 'Journal vouchers',
       open: () => const ClearingJvScreen(),
     ),
     (
       icon: Icons.restore_from_trash_outlined,
       title: 'Recycle bin',
+      menu: [],
+      rights: [],
       subtitle: 'Deleted entries',
       open: () => const RecycleBinScreen(),
     ),
     (
       icon: Icons.manage_history,
       title: 'Edit history',
+      menu: [],
+      rights: [],
       subtitle: 'Who changed what',
       open: () => const EditHistoryScreen(),
     ),
     (
       icon: Icons.history_toggle_off,
       title: 'Edit / delete history',
+      menu: [MenuKey.editDeleteHistory],
+      rights: [],
       subtitle: 'Bets changed or deleted',
       open: () => const AuditHistoryScreen(),
     ),
     (
       icon: Icons.receipt_long_outlined,
       title: 'Havala history',
+      menu: [MenuKey.havalaHistory],
+      rights: [],
       subtitle: 'Havala changed or deleted',
       open: () => const AuditHistoryScreen(havala: true),
     ),
@@ -556,7 +603,9 @@ class MoreScreen extends ConsumerWidget {
               for (final item in _items)
                 // The recycle bin restores and destroys records for the whole
                 // company, so only its admins see it - as on the desk.
-                if (item.title != 'Recycle bin' || _isAdmin(ref))
+                if ((item.title != 'Recycle bin' || _isAdmin(ref)) &&
+                    ref.watch(menuAccessProvider).canAny(item.menu) &&
+                    item.rights.every(ref.watch(menuAccessProvider).has))
                   _MoreTile(
                     icon: item.icon,
                     title: item.title,

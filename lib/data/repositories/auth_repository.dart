@@ -43,8 +43,19 @@ class AuthRepository {
 
   /// Brings back a session saved on a previous launch, if it still works.
   Future<Session?> restore() async {
-    final access = await _tokens.readAccess();
-    final refresh = await _tokens.readRefresh();
+    final String? access;
+    final String? refresh;
+    try {
+      access = await _tokens.readAccess();
+      refresh = await _tokens.readRefresh();
+    } catch (_) {
+      // The saved login could not be read (see TokenStore): start signed out
+      // rather than wait on it for ever.
+      try {
+        await _tokens.clear();
+      } catch (_) {}
+      return null;
+    }
     if (access == null || access.isEmpty || refresh == null || refresh.isEmpty) {
       return null;
     }
@@ -56,11 +67,13 @@ class AuthRepository {
       await _tokens.clear();
       return null;
     }
-    return Session(
-      access: access,
-      refresh: refresh,
-      profile: await _tokens.readProfile(),
-    );
+    Map<String, dynamic>? profile;
+    try {
+      profile = await _tokens.readProfile();
+    } catch (_) {
+      profile = null;
+    }
+    return Session(access: access, refresh: refresh, profile: profile);
   }
 
   Future<void> logout() async {
@@ -79,6 +92,36 @@ class AuthRepository {
   /// What this user is allowed to do, as the backend sees it.
   Future<Map<String, dynamic>> permissions() async =>
       asMap(await _api.get('/permission'));
+
+  /// The user's rights by name ("app_label.codename"), as the server checks
+  /// them. Null from a server too old to send them.
+  Future<Set<String>?> rights() async {
+    final body = await _api.get('/permission');
+    final names = body is Map ? body['codenames'] : null;
+    if (names is! List) return null;
+    return {for (final n in names) n.toString()};
+  }
+
+  /// The keys of every menu entry the user's role may open, from the same
+  /// sidebar the desk builds its menu from.
+  Future<Set<String>> menuKeys() async {
+    final keys = <String>{};
+    void walk(dynamic node) {
+      if (node is List) {
+        for (final child in node) {
+          walk(child);
+        }
+      } else if (node is Map) {
+        final key = node['key'];
+        if (key is String && key.isNotEmpty) keys.add(key);
+        walk(node['subMenu']);
+      }
+    }
+
+    final body = await _api.get('/side-bar');
+    walk(body is Map ? (body['data'] ?? body) : body);
+    return keys;
+  }
 
   Future<void> _persist(Session session) async {
     await _tokens.saveTokens(access: session.access, refresh: session.refresh);

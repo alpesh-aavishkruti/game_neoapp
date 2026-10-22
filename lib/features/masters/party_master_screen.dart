@@ -10,6 +10,7 @@ import '../money/ledger_screen.dart';
 import 'party_edit_sheet.dart';
 import '../../shared/widgets/refresh_on_show.dart';
 import '../../shared/widgets/status_chip.dart';
+import '../auth/menu_access.dart';
 
 /// Party master.
 ///
@@ -124,7 +125,10 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
                     physics: const AlwaysScrollableScrollPhysics(),
                     padding: const EdgeInsets.only(bottom: 92),
                     itemCount: shown.length,
-                    itemBuilder: (context, i) => _PartyRow(party: shown[i]),
+                    itemBuilder: (context, i) => _PartyRow(
+                      party: shown[i],
+                      canViewParty: ref.watch(menuAccessProvider).can(MenuKey.viewParty),
+                    ),
                   ),
                 ),
               ],
@@ -138,18 +142,24 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
 }
 
 class _PartyRow extends StatelessWidget {
-  const _PartyRow({required this.party});
+  const _PartyRow({required this.party, required this.canViewParty});
 
   final Party party;
+
+  /// Whether the statement may be opened. Without the right it opened only to
+  /// spin and say "You do not have permission", so the tap does nothing then.
+  final bool canViewParty;
 
   @override
   Widget build(BuildContext context) {
     final book = context.book;
 
     return InkWell(
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => LedgerScreen(party: party)),
-      ),
+      onTap: canViewParty
+          ? () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => LedgerScreen(party: party)),
+              )
+          : null,
       // Tapping opens the statement, which is what this list is mostly used
       // for; editing the record itself is the rarer intent, so it sits behind
       // a long press rather than competing for the tap.

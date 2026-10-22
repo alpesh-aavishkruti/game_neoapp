@@ -15,6 +15,7 @@ import 'match_providers.dart';
 import 'new_match_sheet.dart';
 import '../../shared/widgets/live_refresh.dart';
 import '../../shared/widgets/refresh_on_show.dart';
+import '../auth/menu_access.dart';
 
 /// Every match, and where it stands.
 ///
@@ -32,65 +33,80 @@ class MatchListScreen extends ConsumerStatefulWidget {
   ConsumerState<MatchListScreen> createState() => _MatchListScreenState();
 }
 
-class _MatchListScreenState extends ConsumerState<MatchListScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: GameType.values.length, vsync: this);
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
-
+class _MatchListScreenState extends ConsumerState<MatchListScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.openBooks ? 'Books' : 'Matches'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(46),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: TabBar(
-              controller: _tabs,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              dividerColor: Colors.transparent,
-              indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(
-                fontFamily: 'Roboto Mono',
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
+    // Only the games the user's role may open; the rest are not shown at all.
+    final access = ref.watch(menuAccessProvider);
+    final games = [
+      for (final game in GameType.values)
+        if (access.canGame(game)) game,
+    ];
+    final title = Text(widget.openBooks ? 'Books' : 'Matches');
+    if (games.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(title: title),
+        body: const Center(child: Text('No games are open to this account.')),
+      );
+    }
+
+    return DefaultTabController(
+      // A change in what may be opened rebuilds the tabs from scratch.
+      key: ValueKey(games.map((g) => g.name).join('|')),
+      length: games.length,
+      child: Builder(
+        builder: (context) {
+          final tabs = DefaultTabController.of(context);
+          return Scaffold(
+            appBar: AppBar(
+              title: title,
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(46),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TabBar(
+                    controller: tabs,
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.start,
+                    dividerColor: Colors.transparent,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    labelStyle: const TextStyle(
+                      fontFamily: 'Roboto Mono',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                    tabs: [
+                      for (final game in games) Tab(text: game.label.toUpperCase()),
+                    ],
+                  ),
+                ),
               ),
-              tabs: [
-                for (final game in GameType.values) Tab(text: game.label.toUpperCase()),
+            ),
+            body: TabBarView(
+              controller: tabs,
+              children: [
+                for (final game in games)
+                  _MatchTab(game: game, openBooks: widget.openBooks),
               ],
             ),
-          ),
-        ),
+            floatingActionButton: widget.openBooks
+                ? null
+                : AnimatedBuilder(
+                    animation: tabs,
+                    builder: (context, _) {
+                      final game = games[tabs.index];
+                      return FloatingActionButton.extended(
+                        heroTag: 'fab-new-match',
+                        onPressed: () => NewMatchSheet.show(context, game: game),
+                        icon: const Icon(Icons.add),
+                        label: Text('New ${game.label.toLowerCase()}'),
+                      );
+                    },
+                  ),
+          );
+        },
       ),
-      body: TabBarView(
-        controller: _tabs,
-        children: [
-          for (final game in GameType.values)
-            _MatchTab(game: game, openBooks: widget.openBooks),
-        ],
-      ),
-      floatingActionButton: widget.openBooks
-          ? null
-          : AnimatedBuilder(
-              animation: _tabs,
-              builder: (context, _) {
-                final game = GameType.values[_tabs.index];
-                return FloatingActionButton.extended(
-                  heroTag: 'fab-new-match',
-                  onPressed: () => NewMatchSheet.show(context, game: game),
-                  icon: const Icon(Icons.add),
-                  label: Text('New ${game.label.toLowerCase()}'),
-                );
-              },
-            ),
     );
   }
 }

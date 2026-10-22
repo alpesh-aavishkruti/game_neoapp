@@ -1,5 +1,6 @@
 import '../../core/network/api_client.dart';
 import '../models/match.dart';
+import '../../core/network/api_exception.dart';
 
 /// The masters and the audit trails - everything behind More.
 ///
@@ -27,7 +28,15 @@ class MasterRepository {
   /// are fetched separately and stamped.
   Future<List<GameMatch>> recallableMatches() async {
     final matches = await rows('/master/matches/');
-    final cups = await rows('/master/cups/');
+    // A role may list matches but not cups; recall what it can rather than
+    // failing the whole screen over the cups it may not read.
+    List<Map<String, dynamic>> cups;
+    try {
+      cups = await rows('/master/cups/');
+    } on ApiException catch (e) {
+      if (e.statusCode != 403) rethrow;
+      cups = const [];
+    }
 
     return [
       ...matches.map(GameMatch.fromJson),
