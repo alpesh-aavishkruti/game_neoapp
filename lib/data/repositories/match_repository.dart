@@ -213,14 +213,15 @@ class MatchRepository {
 
   /// Parties available to bet for. Loaded once and searched on the device, so
   /// the client-code field answers instantly rather than per keystroke.
-  Future<List<Party>> parties() async {
+  Future<List<Party>> parties() async =>
+      (await allParties()).where((p) => p.isActive).toList();
+
+  /// Every party, deactivated ones included - for Party Master, the one
+  /// place a deactivated party is still shown.
+  Future<List<Party>> allParties() async {
     // Every page: a company with more than a hundred parties had the rest
     // missing from client codes, Party Master and every picker.
     final rows = await _api.getAll('/master/parties/');
-    return rows
-        .map(Party.fromJson)
-        .where((p) => p.isActive)
-        .toList()
-      ..sort((a, b) => a.code.compareTo(b.code));
+    return rows.map(Party.fromJson).toList()..sort((a, b) => a.code.compareTo(b.code));
   }
 }

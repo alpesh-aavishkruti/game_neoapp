@@ -19,9 +19,18 @@ final activeMatchesProvider =
   return ref.watch(matchRepositoryProvider).activeMatches(game);
 });
 
-/// The parties list, loaded once and reused by every client-code field.
+/// Every party, deactivated ones included. Only Party Master shows these; the
+/// rest of the app reads [partiesProvider]. Invalidate this one to re-read
+/// parties - [partiesProvider] follows it.
+final allPartiesProvider = FutureProvider<List<Party>>((ref) async {
+  return ref.watch(matchRepositoryProvider).allParties();
+});
+
+/// The parties list, loaded once and reused by every client-code field and
+/// picker. A deactivated party is left out of all of them.
 final partiesProvider = FutureProvider<List<Party>>((ref) async {
-  return ref.watch(matchRepositoryProvider).parties();
+  final all = await ref.watch(allPartiesProvider.future);
+  return all.where((p) => p.isActive).toList();
 });
 
 /// Everything one board needs, fetched together so the tiles and the rows

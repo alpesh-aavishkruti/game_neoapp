@@ -194,7 +194,7 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
 
       // Every client-code field reads this list, so it has to be refreshed
       // before the new party can be bet for.
-      ref.invalidate(partiesProvider);
+      ref.invalidate(allPartiesProvider);
 
       final saved = Party.fromJson(asMap(body));
       if (mounted) Navigator.of(context).pop(saved.id == 0 ? null : saved);

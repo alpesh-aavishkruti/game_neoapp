@@ -9,6 +9,7 @@ import '../matches/match_providers.dart';
 import '../money/ledger_screen.dart';
 import 'party_edit_sheet.dart';
 import '../../shared/widgets/refresh_on_show.dart';
+import '../../shared/widgets/status_chip.dart';
 
 /// Party master.
 ///
@@ -40,10 +41,11 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final parties = ref.watch(partiesProvider);
+    // Deactivated parties too: Party Master is where they are still shown.
+    final parties = ref.watch(allPartiesProvider);
 
     return RefreshOnShow(
-      providers: [partiesProvider],
+      providers: [allPartiesProvider],
       child: Scaffold(
       appBar: AppBar(
         title: const Text('Parties'),
@@ -82,10 +84,10 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
         label: const Text('Add party'),
       ),
       body: RefreshIndicator(
-        onRefresh: () => ref.refresh(partiesProvider.future),
+        onRefresh: () => ref.refresh(allPartiesProvider.future),
         child: AsyncView(
           value: parties,
-          onRetry: () => ref.invalidate(partiesProvider),
+          onRetry: () => ref.invalidate(allPartiesProvider),
           isEmpty: (list) => list.isEmpty,
           emptyTitle: 'No parties yet',
           builder: (list) {
@@ -198,6 +200,12 @@ class _PartyRow extends StatelessWidget {
                 ],
               ),
             ),
+            // Shown here and nowhere else: a deactivated party is left out
+            // of every picker in the app.
+            if (!party.isActive) ...[
+              const SizedBox(width: 8),
+              const StatusChip('Deactivated', tone: ChipTone.down),
+            ],
             if (party.balance != null) ...[
               const SizedBox(width: 8),
               Text(
