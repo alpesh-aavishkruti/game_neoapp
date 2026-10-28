@@ -26,15 +26,16 @@ class SidePill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brand = context.scheme.primary;
-    final fg = selected ? Colors.white : context.scheme.onSurface;
+    // Each box wears its own side's colour, as the desk asked: Dena red,
+    // Lena green - filled when chosen, a light wash of it when not.
+    final fg = selected ? Colors.white : tone;
 
     return Semantics(
       button: true,
       selected: selected,
       label: '$label $count lines',
       child: Material(
-        color: selected ? brand : context.scheme.surface,
+        color: selected ? tone : tone.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
@@ -44,7 +45,7 @@ class SidePill extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: selected ? brand : context.book.line),
+              border: Border.all(color: selected ? tone : tone.withValues(alpha: 0.45)),
             ),
             child: FittedBox(
               fit: BoxFit.scaleDown,

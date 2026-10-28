@@ -95,6 +95,12 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   /// change straight away while it is saved.
   final _overrides = <int, bool>{};
 
+  /// The line last tapped, lit the way the desk lights the row under the
+  /// cursor so the eye keeps its place. A tap only marks it; opening the
+  /// record takes a double tap, so scrolling past a havala no longer drops
+  /// the operator into its edit box.
+  int? _picked;
+
   bool _isChecked(LedgerRow row) => _overrides[row.id] ?? row.isChecked;
 
   /// Ticks or unticks [rows] and saves it against each line's record. If the
@@ -178,6 +184,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   void _open(Party party) => setState(() {
         _party = party;
         _overrides.clear();
+        _picked = null;
         _side = _Side.all;
         if (!_ownDates) {
           _from = null;
@@ -270,6 +277,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
         _to = null;
         _ownDates = false;
         _overrides.clear();
+        _picked = null;
         _side = _Side.all;
       });
 
@@ -499,6 +507,8 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
                           return _LedgerLine(
                             row: row,
                             isChecked: _isChecked(row),
+                            isPicked: _picked == row.id,
+                            onPick: () => setState(() => _picked = row.id),
                             onToggle: () =>
                                 _setChecks(party.id, [row], !_isChecked(row)),
                             onOpen: _openTarget(row) ? () => _openRow(row, party) : null,
@@ -984,6 +994,8 @@ class _LedgerLine extends StatelessWidget {
   const _LedgerLine({
     required this.row,
     required this.isChecked,
+    required this.isPicked,
+    required this.onPick,
     required this.onToggle,
     this.onJump,
     this.onDelete,
@@ -992,11 +1004,14 @@ class _LedgerLine extends StatelessWidget {
 
   final LedgerRow row;
   final bool isChecked;
+  final bool isPicked;
+  final VoidCallback onPick;
   final VoidCallback onToggle;
   final VoidCallback? onJump;
   final VoidCallback? onDelete;
 
   /// Opens what the line came from: the havala to edit, or the match's bets.
+  /// Asked for with a double tap.
   final VoidCallback? onOpen;
 
   @override
@@ -1008,10 +1023,18 @@ class _LedgerLine extends StatelessWidget {
 
     final line = Container(
       decoration: BoxDecoration(
-        color: isChecked
-            ? context.scheme.primary.withValues(alpha: 0.06)
-            : context.scheme.surface,
-        border: Border(bottom: BorderSide(color: book.line)),
+        color: isPicked
+            ? _pickedTint
+            : isChecked
+                ? context.scheme.primary.withValues(alpha: 0.06)
+                : context.scheme.surface,
+        border: Border(
+          bottom: BorderSide(color: book.line),
+          left: BorderSide(
+            color: isPicked ? _pickedEdge : Colors.transparent,
+            width: 3,
+          ),
+        ),
       ),
       padding: const EdgeInsets.fromLTRB(2, 6, 12, 6),
       child: Row(
@@ -1157,9 +1180,12 @@ class _LedgerLine extends StatelessWidget {
         ],
       ),
     );
-    if (onOpen == null) return line;
-    return InkWell(onTap: onOpen, child: line);
+    return InkWell(onTap: onPick, onDoubleTap: onOpen, child: line);
   }
+
+  // The desk's orange cursor row, softened enough to read the figures through.
+  static const _pickedEdge = Color(0xFFE8590C);
+  static const _pickedTint = Color(0x33E8590C);
 }
 
 /// A quiet action on a statement line.
