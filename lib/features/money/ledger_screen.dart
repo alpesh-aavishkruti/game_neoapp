@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:share_plus/share_plus.dart';
-
-import '../../core/config/app_config.dart';
+import '../auth/menu_access.dart';
 import '../../core/network/api_exception.dart';
-import '../auth/auth_controller.dart';
 import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/util/app_time.dart';
@@ -19,6 +16,7 @@ import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
 import '../matches/match_providers.dart';
 import 'havala_entry_sheet.dart';
+import 'statement_link_sheet.dart';
 import 'havala_screen.dart' show havalaRepositoryProvider;
 import '../books/party_soda_screen.dart';
 import '../../shared/widgets/app_dropdown.dart';
@@ -198,9 +196,19 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
   /// question is always what that side's book looks like.
   /// Lines with something behind them to open, as "Edit Data" does on the
   /// desk: a havala, or a match result.
-  bool _openTarget(LedgerRow row) =>
-      (row.source == 'havala' && row.originalId != null) ||
-      (row.matchId != null && row.gameCode.isNotEmpty);
+  ///
+  /// Only what this user may open: a havala to someone who may change one, a
+  /// match's bets to someone who may read that game. Otherwise the double tap
+  /// opened a screen that spun and said "You do not have permission".
+  bool _openTarget(LedgerRow row) {
+    final access = ref.read(menuAccessProvider);
+    if (row.source == 'havala' && row.originalId != null) {
+      return access.has('soda.view_havala') && access.has('soda.change_havala');
+    }
+    return row.matchId != null &&
+        row.gameCode.isNotEmpty &&
+        access.canGame(GameType.parse(row.gameCode));
+  }
 
   Future<void> _openRow(LedgerRow row, Party party) async {
     if (row.source == 'havala' && row.originalId != null) {
@@ -361,11 +369,12 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
         ),
         actions: [
           if (party != null) ...[
-            IconButton(
-              icon: const Icon(Icons.add_card_outlined),
-              tooltip: 'Add havala',
-              onPressed: _addHavala,
-            ),
+            if (ref.watch(menuAccessProvider).has('soda.add_havala'))
+              IconButton(
+                icon: const Icon(Icons.add_card_outlined),
+                tooltip: 'Add havala',
+                onPressed: _addHavala,
+              ),
             IconButton(
               icon: const Icon(Icons.ios_share),
               tooltip: 'Share as PDF',
@@ -374,7 +383,7 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
             IconButton(
               icon: const Icon(Icons.link),
               tooltip: 'Share statement link',
-              onPressed: () => _shareStatementLink(party),
+              onPressed: () => StatementLinkSheet.show(context, party: party),
             ),
           ],
           IconButton(
@@ -388,26 +397,9 @@ class _LedgerScreenState extends ConsumerState<LedgerScreen> {
     );
   }
 
-  /// Sends the party the read-only link to its own statement - havala and
-  /// match lines with the balance - which opens in any browser, no sign-in.
-  Future<void> _shareStatementLink(Party party) async {
-    final auth = ref.read(authControllerProvider);
-    final orgId = auth is SignedIn ? auth.session.organizationId : null;
-    if (orgId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not make the link for this account.')),
-      );
-      return;
-    }
-    final link = AppConfig.partyStatementLink(orgId, party.code);
-    await SharePlus.instance.share(
-      ShareParams(text: link, subject: 'Statement - ${party.code}'),
-    );
-  }
-
   Future<void> _addHavala() async {
-    final saved = await HavalaEntrySheet.show(context);
     final party = _party;
+    final saved = await HavalaEntrySheet.show(context, fromPartyId: party?.id);
     if (saved == true && party != null) ref.invalidate(ledgerProvider(party.id));
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../auth/menu_access.dart';
 import '../../core/network/api_client.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers.dart';
@@ -616,8 +617,9 @@ class _GeneralRow extends ConsumerWidget {
 
     return InkWell(
       // A figure here is a question - "why does this party owe that?" - and
-      // the statement is the answer, so it is one tap away.
-      onTap: () async {
+      // the statement is the answer, so it is one tap away - for a user who
+      // may read statements; for anyone else the row does nothing.
+      onTap: !ref.watch(menuAccessProvider).canViewParty ? null : () async {
         final parties = await ref.read(partiesProvider.future);
         if (!context.mounted) return;
         final party = parties.firstWhere(

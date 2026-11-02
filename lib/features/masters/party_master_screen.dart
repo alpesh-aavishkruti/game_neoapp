@@ -127,7 +127,7 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
                     itemCount: shown.length,
                     itemBuilder: (context, i) => _PartyRow(
                       party: shown[i],
-                      canViewParty: ref.watch(menuAccessProvider).can(MenuKey.viewParty),
+                      canViewParty: ref.watch(menuAccessProvider).canViewParty,
                     ),
                   ),
                 ),

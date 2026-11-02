@@ -24,38 +24,32 @@ class AppShell extends ConsumerStatefulWidget {
 class _AppShellState extends ConsumerState<AppShell> {
   int _index = 0;
 
-  /// Each tab, with the desk menu entries behind it: a tab shows only when
-  /// the user's role may open one of them (none listed: always - More holds
-  /// Security, which every account has).
+  /// Each tab, with what the user must be able to open for it to show. More
+  /// always shows: it holds Security, which every account has.
   static final _all = [
     (
       destination: (icon: Icons.sports_cricket_outlined, active: Icons.sports_cricket, label: 'Matches'),
-      menu: const <String>[],
-      games: true,
+      shows: (MenuAccess a) => GameType.values.any(a.canGame),
       screen: const MatchListScreen(),
     ),
     (
       destination: (icon: Icons.menu_book_outlined, active: Icons.menu_book, label: 'Books'),
-      menu: const <String>[],
-      games: true,
+      shows: (MenuAccess a) => GameType.values.any(a.canGame),
       screen: const MatchListScreen(openBooks: true),
     ),
     (
       destination: (icon: Icons.bar_chart_outlined, active: Icons.bar_chart, label: 'Reports'),
-      menu: [for (final (_, menu, _) in reportTabs) menu],
-      games: false,
+      shows: (MenuAccess a) => visibleReportTabs(a).isNotEmpty,
       screen: const ReportsScreen(),
     ),
     (
       destination: (icon: Icons.groups_outlined, active: Icons.groups, label: 'Party'),
-      menu: const [MenuKey.party],
-      games: false,
+      shows: (MenuAccess a) => a.canViewParties,
       screen: const PartyMasterScreen(),
     ),
     (
       destination: (icon: Icons.more_horiz, active: Icons.more_horiz, label: 'More'),
-      menu: const <String>[],
-      games: false,
+      shows: (MenuAccess a) => true,
       screen: const MoreScreen(),
     ),
   ];
@@ -63,11 +57,9 @@ class _AppShellState extends ConsumerState<AppShell> {
   @override
   Widget build(BuildContext context) {
     final access = ref.watch(menuAccessProvider);
-    // Matches and Books show when any game's tab would; the rest by menu.
-    final anyGame = GameType.values.any(access.canGame);
     final tabs = [
       for (final t in _all)
-        if (t.games ? anyGame : access.canAny(t.menu)) t,
+        if (t.shows(access)) t,
     ];
     final index = _index.clamp(0, tabs.length - 1);
 

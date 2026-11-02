@@ -16,30 +16,32 @@ import '../auth/menu_access.dart';
 /// hand over. They are the same six an operator already knows by name, so they
 /// are named the same rather than regrouped into something tidier.
 ///
-/// Each tab names the desk menu entry behind it, and shows only when the
-/// user's role may open that entry.
-const reportTabs = <(String, String, Widget)>[
-  ('HAVALA REPORT', MenuKey.havalaReport, HavalaReportScreen(embedded: true)),
-  ('VIEW GENERAL', MenuKey.viewGeneral, GeneralScreen(embedded: true)),
-  ('VIEW PARTY', MenuKey.viewParty, LedgerScreen(embedded: true)),
-  ('LEDGER REPORT', MenuKey.ledgerReport, LedgerReportScreen(embedded: true)),
-  ('GENERAL REPORT', MenuKey.generalReport, GeneralReportScreen(embedded: true)),
-  ('MATCH REPORT', MenuKey.matchReport, MatchReportScreen(embedded: true)),
+/// Each tab names the desk menu entry behind it and the right its screen reads
+/// with, and shows only when the user's role has both.
+const reportTabs = <(String, String, String, Widget)>[
+  ('HAVALA REPORT', MenuKey.havalaReport, 'soda.view_havala_report', HavalaReportScreen(embedded: true)),
+  ('VIEW GENERAL', MenuKey.viewGeneral, 'master.view_general', GeneralScreen(embedded: true)),
+  ('VIEW PARTY', MenuKey.viewParty, 'master.view_party_ledger', LedgerScreen(embedded: true)),
+  ('LEDGER REPORT', MenuKey.ledgerReport, 'master.view_ledger_report', LedgerReportScreen(embedded: true)),
+  ('GENERAL REPORT', MenuKey.generalReport, 'master.view_general_report', GeneralReportScreen(embedded: true)),
+  ('MATCH REPORT', MenuKey.matchReport, 'master.view_match_report', MatchReportScreen(embedded: true)),
   // Not on the desk's report bar - havalas are raised from their own menu -
   // but the list of them has to live somewhere, and this is where money is.
-  ('HAVALA', MenuKey.havala, HavalaScreen(embedded: true)),
+  ('HAVALA', MenuKey.havala, 'soda.view_havala', HavalaScreen(embedded: true)),
 ];
+
+/// The report tabs this user may open, in order.
+List<(String, Widget)> visibleReportTabs(MenuAccess access) => [
+      for (final (label, menu, right, screen) in reportTabs)
+        if (access.canOpen(menu, right)) (label, screen),
+    ];
 
 class ReportsScreen extends ConsumerWidget {
   const ReportsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final access = ref.watch(menuAccessProvider);
-    final tabs = [
-      for (final (label, menu, screen) in reportTabs)
-        if (access.can(menu)) (label, screen),
-    ];
+    final tabs = visibleReportTabs(ref.watch(menuAccessProvider));
     if (tabs.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Reports')),

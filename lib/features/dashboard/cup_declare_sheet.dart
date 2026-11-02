@@ -50,7 +50,8 @@ class _CupDeclareSheetState extends ConsumerState<CupDeclareSheet> {
 
   Future<void> _declare(CupProgress progress) async {
     final nation = _nation;
-    final account = _account;
+    // The account picked here, else the one offered first.
+    final account = _account ?? ref.read(accountsProvider).value?.suggested;
 
     final problem = switch (null) {
       _ when nation == null => progress.asksForWinner
@@ -227,7 +228,7 @@ class _Eliminate extends StatelessWidget {
   final String? selected;
   final ValueChanged<String> onSelected;
   final LedgerAccount? account;
-  final AsyncValue<List<LedgerAccount>> accounts;
+  final AsyncValue<PlAccounts> accounts;
   final ValueChanged<LedgerAccount> onAccount;
 
   @override
@@ -290,12 +291,12 @@ class _Eliminate extends StatelessWidget {
                 'Could not load the accounts list.',
                 style: context.text.bodyMedium?.copyWith(color: book.down),
               ),
-              data: (list) => AppDropdown<LedgerAccount>(
-                initialValue: account,
+              data: (pl) => AppDropdown<LedgerAccount>(
+                initialValue: account ?? pl.suggested,
                 isExpanded: true,
                 decoration: const InputDecoration(hintText: 'Choose an account'),
                 items: [
-                  for (final a in list) DropdownMenuItem(value: a, child: Text(a.display)),
+                  for (final a in pl.list) DropdownMenuItem(value: a, child: Text(a.display)),
                 ],
                 onChanged: (value) {
                   if (value != null) onAccount(value);

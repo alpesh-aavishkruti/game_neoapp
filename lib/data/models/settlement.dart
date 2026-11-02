@@ -1,4 +1,5 @@
 import '../../core/util/money.dart';
+import 'party.dart';
 
 /// One party's side of a settlement: what they pay, or what they are paid.
 class SettlementLine {
@@ -149,6 +150,10 @@ class LedgerAccount {
   final int id;
   final String code;
   final String name;
+
+  /// A party as a P&L account: a match is closed to a party, as on the desk.
+  factory LedgerAccount.fromParty(Party party) =>
+      LedgerAccount(id: party.id, code: party.code, name: party.name);
 
   factory LedgerAccount.fromJson(Map<String, dynamic> json) => LedgerAccount(
         id: int.tryParse('${json['id']}') ?? 0,

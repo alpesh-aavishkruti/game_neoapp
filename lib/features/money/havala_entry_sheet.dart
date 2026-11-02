@@ -18,17 +18,21 @@ import 'havala_screen.dart';
 /// below, an arrow between them. There is no way to misread which direction
 /// the money went, which is the mistake this form exists to prevent.
 class HavalaEntrySheet extends ConsumerStatefulWidget {
-  const HavalaEntrySheet({super.key, this.editing});
+  const HavalaEntrySheet({super.key, this.editing, this.fromPartyId});
 
   /// The havala being changed, when this is an edit rather than a new one.
   final Havala? editing;
 
-  static Future<bool?> show(BuildContext context, {Havala? editing}) =>
+  /// The party whose statement is open, which pays on a new havala raised
+  /// from it - as on the desk, where only the receiver is left to choose.
+  final int? fromPartyId;
+
+  static Future<bool?> show(BuildContext context, {Havala? editing, int? fromPartyId}) =>
       showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
-        builder: (_) => HavalaEntrySheet(editing: editing),
+        builder: (_) => HavalaEntrySheet(editing: editing, fromPartyId: fromPartyId),
       );
 
   @override
@@ -83,11 +87,35 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
   /// ids before it knows the parties.
   void _adoptParties(List<Party> list) {
     final editing = widget.editing;
-    if (editing == null || (_from != null && _to != null)) return;
+    if (editing == null) {
+      _adoptPayer(list);
+      return;
+    }
+    if (_from != null && _to != null) return;
     for (final party in list) {
       if (party.id == editing.fromId) _from ??= party;
       if (party.id == editing.toId) _to ??= party;
     }
+  }
+
+  bool _payerAdopted = false;
+
+  /// A new havala from an open statement: that party pays, and the receiver
+  /// search opens straight away, so the receiver's code is the one thing to
+  /// type.
+  void _adoptPayer(List<Party> list) {
+    final id = widget.fromPartyId;
+    if (id == null || _payerAdopted) return;
+    _payerAdopted = true;
+    for (final party in list) {
+      if (party.id == id) _from = party;
+    }
+    if (_from == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _to != null) return;
+      final chosen = await PartyField.choose(context, list);
+      if (chosen != null && mounted) setState(() => _to = chosen);
+    });
   }
 
   Future<void> _loadVoucherNo() async {

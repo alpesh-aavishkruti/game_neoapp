@@ -3,17 +3,10 @@ import 'package:game_app_flutter/core/config/app_config.dart';
 import 'package:game_app_flutter/data/models/session.dart';
 
 void main() {
-  test('the statement link points at the web desk with company and code', () {
+  test('the statement link points at the web desk with a random token', () {
     expect(
-      AppConfig.partyStatementLink(5, 'DGP'),
-      'https://neonacc.com/#/ledger/5/DGP',
-    );
-  });
-
-  test('a code with spaces or slashes stays one part of the link', () {
-    expect(
-      AppConfig.partyStatementLink(5, 'A B/C'),
-      'https://neonacc.com/#/ledger/5/A%20B%2FC',
+      AppConfig.partyStatementLink('aB3-x_9'),
+      'https://neonacc.com/#/statement/aB3-x_9',
     );
   });
 

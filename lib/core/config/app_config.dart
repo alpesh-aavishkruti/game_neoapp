@@ -41,9 +41,10 @@ class AppConfig {
     defaultValue: 'https://neonacc.com',
   );
 
-  /// A party's own read-only statement, as the web desk shares it.
-  static String partyStatementLink(Object organizationId, String partyCode) =>
-      '$webBaseUrl/#/ledger/$organizationId/${Uri.encodeComponent(partyCode)}';
+  /// A party's own read-only statement, as the web desk shares it. The token
+  /// is random, so one party's link says nothing about another's.
+  static String partyStatementLink(String token) =>
+      '$webBaseUrl/#/statement/${Uri.encodeComponent(token)}';
 
   static const Duration connectTimeout = Duration(seconds: 20);
   static const Duration receiveTimeout = Duration(seconds: 30);

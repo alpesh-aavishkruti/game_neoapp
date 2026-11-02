@@ -22,13 +22,18 @@ class PartyField extends StatelessWidget {
   final ValueChanged<Party> onChanged;
   final String hint;
 
+  /// Opens the party search on its own, for a form that asks for a party
+  /// before the operator has tapped anything.
+  static Future<Party?> choose(BuildContext context, List<Party> parties) =>
+      showModalBottomSheet<Party>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (_) => PartyPickerSheet(parties: parties),
+      );
+
   Future<void> _pick(BuildContext context) async {
-    final chosen = await showModalBottomSheet<Party>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => PartyPickerSheet(parties: parties),
-    );
+    final chosen = await choose(context, parties);
     if (chosen != null) onChanged(chosen);
   }
 

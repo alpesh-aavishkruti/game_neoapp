@@ -124,14 +124,6 @@ class MatchRepository {
     return SessionTotals.fromJson(asMap(body));
   }
 
-  /// House accounts a match can be settled against.
-  Future<List<LedgerAccount>> accounts() async {
-    // Every page: the list is paged ten at a time, which hid accounts past
-    // the tenth from the close-match picker.
-    final rows = await _api.getAll('/master/accounts/');
-    return rows.map(LedgerAccount.fromJson).toList();
-  }
-
   /// What closing the match would move, without closing it.
   ///
   /// The same endpoint answers GET as a preview and POST as the close, so the

@@ -6,6 +6,7 @@ import '../../core/util/app_time.dart';
 import '../../core/util/money.dart';
 import '../../shared/widgets/async_view.dart';
 import '../../shared/widgets/status_chip.dart';
+import '../auth/menu_access.dart';
 import 'master_providers.dart';
 import '../../shared/widgets/refresh_on_show.dart';
 
@@ -14,26 +15,21 @@ import '../../shared/widgets/refresh_on_show.dart';
 /// Debit against credit on the same line, with a chip that says at a glance
 /// whether they agree. An unbalanced voucher names its gap here rather than
 /// waiting to be found at month end.
-class ClearingJvScreen extends StatefulWidget {
+///
+/// Each list shows only to a user who may read it.
+class ClearingJvScreen extends ConsumerWidget {
   const ClearingJvScreen({super.key});
 
   @override
-  State<ClearingJvScreen> createState() => _ClearingJvScreenState();
-}
-
-class _ClearingJvScreenState extends State<ClearingJvScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final access = ref.watch(menuAccessProvider);
+    final lists = [
+      if (access.canClearingJv) ('CLEARING', '/soda/clearing-jv/'),
+      if (access.canInflowClearingJv) ('INFLOW CLEARING', '/soda/inflow-clearing-jv/'),
+    ];
+    return DefaultTabController(
+      length: lists.length,
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Clearing JV'),
         bottom: PreferredSize(
@@ -41,7 +37,6 @@ class _ClearingJvScreenState extends State<ClearingJvScreen>
           child: Align(
             alignment: Alignment.centerLeft,
             child: TabBar(
-              controller: _tabs,
               isScrollable: true,
               tabAlignment: TabAlignment.start,
               dividerColor: Colors.transparent,
@@ -52,17 +47,14 @@ class _ClearingJvScreenState extends State<ClearingJvScreen>
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.2,
               ),
-              tabs: const [Tab(text: 'CLEARING'), Tab(text: 'INFLOW CLEARING')],
+              tabs: [for (final (label, _) in lists) Tab(text: label)],
             ),
           ),
         ),
       ),
       body: TabBarView(
-        controller: _tabs,
-        children: const [
-          _VoucherList(path: '/soda/clearing-jv/'),
-          _VoucherList(path: '/soda/inflow-clearing-jv/'),
-        ],
+        children: [for (final (_, path) in lists) _VoucherList(path: path)],
+      ),
       ),
     );
   }

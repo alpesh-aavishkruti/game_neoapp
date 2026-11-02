@@ -8,6 +8,7 @@ import 'package:game_app_flutter/data/repositories/havala_repository.dart';
 import 'package:game_app_flutter/features/matches/match_providers.dart';
 import 'package:game_app_flutter/features/money/havala_entry_sheet.dart';
 import 'package:game_app_flutter/features/money/havala_screen.dart';
+import 'package:game_app_flutter/shared/widgets/party_field.dart';
 
 class _FakeHavalas implements HavalaRepository {
   final updates = <({int id, double amount, String description, int from, int to})>[];
@@ -71,14 +72,14 @@ final _dena = Havala(
   description: '123 X 12 cash',
 );
 
-Widget _host(_FakeHavalas havalas, {Havala? editing}) => ProviderScope(
+Widget _host(_FakeHavalas havalas, {Havala? editing, int? fromPartyId}) => ProviderScope(
       overrides: [
         havalaRepositoryProvider.overrideWithValue(havalas),
         partiesProvider.overrideWith((ref) async => _parties),
       ],
       child: MaterialApp(
         theme: AppTheme.dark(),
-        home: Scaffold(body: HavalaEntrySheet(editing: editing)),
+        home: Scaffold(body: HavalaEntrySheet(editing: editing, fromPartyId: fromPartyId)),
       ),
     );
 
@@ -140,5 +141,33 @@ void main() {
     await tester.pump();
 
     expect(_boxText(tester, 'Amount'), '5852.00');
+  });
+
+  testWidgets('raised from an open statement, that party pays and the receiver search opens',
+      (tester) async {
+    final havalas = _FakeHavalas();
+    await tester.pumpWidget(_host(havalas, fromPartyId: 15));
+    await tester.pumpAndSettle();
+
+    // The receiver search is already up, over the form.
+    expect(find.byType(PartyPickerSheet), findsOneWidget);
+    await tester.tap(find.textContaining('SUSPENSE').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(PartyPickerSheet), findsNothing);
+
+    // The payer was filled in from the open statement; the receiver as chosen.
+    expect(find.text(_parties[0].display), findsOneWidget);
+    expect(find.text(_parties[1].display), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '500');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save havala'));
+    await tester.pumpAndSettle();
+    expect(havalas.creates.single.amount, 500);
+  });
+
+  testWidgets('a havala raised elsewhere starts with no party chosen', (tester) async {
+    await tester.pumpWidget(_host(_FakeHavalas()));
+    await tester.pumpAndSettle();
+    expect(find.text('Tap to choose'), findsNWidgets(2));
   });
 }

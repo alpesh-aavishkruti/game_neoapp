@@ -83,6 +83,22 @@ class MenuAccess {
 
   /// True when any of [keys] may be opened; an empty list means always.
   bool canAny(Iterable<String> keys) => keys.isEmpty || keys.any(can);
+
+  /// A menu entry and the right its screen reads with. The menu entry alone
+  /// let a screen open that then spun and said "You do not have permission",
+  /// as the game tabs did.
+  bool canOpen(String key, String right) => can(key) && has(right);
+
+  /// A party's statement (VIEW PARTY), wherever it is opened from.
+  bool get canViewParty => canOpen(MenuKey.viewParty, 'master.view_party_ledger');
+
+  /// The party list - Party Master and every party picker read it.
+  bool get canViewParties => canOpen(MenuKey.party, 'master.view_partymaster');
+
+  bool get canClearingJv => canOpen(MenuKey.clearingJv, 'soda.view_clearingjournal');
+
+  bool get canInflowClearingJv =>
+      canOpen(MenuKey.inflowClearingJv, 'soda.view_inflowclearingjournal');
 }
 
 final menuAccessProvider = Provider<MenuAccess>((ref) {

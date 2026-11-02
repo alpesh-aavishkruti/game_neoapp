@@ -9,10 +9,60 @@ import '../../data/models/match.dart';
 import '../../data/models/settlement.dart';
 import '../../shared/widgets/field_label.dart';
 import '../matches/match_providers.dart';
+import '../masters/master_providers.dart';
 import '../../shared/widgets/app_dropdown.dart';
 
-final accountsProvider = FutureProvider<List<LedgerAccount>>((ref) async {
-  return ref.watch(matchRepositoryProvider).accounts();
+/// What a match can be closed to, and the one to offer first.
+class PlAccounts {
+  const PlAccounts({required this.list, this.suggested});
+
+  final List<LedgerAccount> list;
+  final LedgerAccount? suggested;
+}
+
+/// The P&L accounts, as the desk offers them: every active party - the
+/// Account Master list held no OTG, and its ids are not parties' ids, which
+/// the close is written against.
+///
+/// Offered first, as on the desk: the account the company last closed to,
+/// then the party coded (or named) exactly OTG, then the Auto Member. Read
+/// afresh each time a sheet opens, so the last close is always the default.
+final accountsProvider = FutureProvider.autoDispose<PlAccounts>((ref) async {
+  final parties = await ref.watch(partiesProvider.future);
+  final list = parties.map(LedgerAccount.fromParty).toList();
+
+  Map<String, dynamic> settings = const {};
+  try {
+    settings = await ref.read(masterRepositoryProvider).organisationSettings();
+  } catch (_) {
+    // No default then; the list still works.
+  }
+  int? idOf(Object? value) =>
+      int.tryParse('${value is Map ? value['id'] : value ?? ''}');
+  LedgerAccount? byId(int? id) {
+    if (id == null) return null;
+    for (final a in list) {
+      if (a.id == id) return a;
+    }
+    return null;
+  }
+
+  LedgerAccount? otg;
+  for (final exact in [(LedgerAccount a) => a.code, (LedgerAccount a) => a.name]) {
+    for (final a in list) {
+      if (exact(a).trim().toUpperCase() == 'OTG') {
+        otg ??= a;
+      }
+    }
+    if (otg != null) break;
+  }
+
+  return PlAccounts(
+    list: list,
+    suggested: byId(idOf(settings['last_pl_account'])) ??
+        otg ??
+        byId(idOf(settings['auto_member'])),
+  );
 });
 
 /// Settling a match.
@@ -52,6 +102,10 @@ class _CloseMatchSheetState extends ConsumerState<CloseMatchSheet> {
 
   bool get _isSession => widget.match.game == GameType.session;
 
+  /// The account picked here, else the one offered first.
+  LedgerAccount? get _chosenAccount =>
+      _account ?? ref.read(accountsProvider).value?.suggested;
+
   @override
   void dispose() {
     _runController.dispose();
@@ -82,7 +136,7 @@ class _CloseMatchSheetState extends ConsumerState<CloseMatchSheet> {
       final preview = await ref.read(matchRepositoryProvider).settlementPreview(
             match: widget.match,
             winSelection: selection,
-            plAccountId: _account?.id,
+            plAccountId: _chosenAccount?.id,
           );
       if (mounted) setState(() => _preview = preview);
     } on ApiException catch (e) {
@@ -94,7 +148,7 @@ class _CloseMatchSheetState extends ConsumerState<CloseMatchSheet> {
 
   Future<void> _close() async {
     final selection = _selectionCode;
-    final account = _account;
+    final account = _chosenAccount;
     final preview = _preview;
 
     final problem = switch (null) {
@@ -219,9 +273,9 @@ class _CloseMatchSheetState extends ConsumerState<CloseMatchSheet> {
                     'Could not load the accounts list.',
                     style: context.text.bodyMedium?.copyWith(color: book.down),
                   ),
-                  data: (list) => _AccountPicker(
-                    accounts: list,
-                    selected: _account,
+                  data: (pl) => _AccountPicker(
+                    accounts: pl.list,
+                    selected: _account ?? pl.suggested,
                     onChanged: (a) => setState(() {
                       _account = a;
                       _preview = null;

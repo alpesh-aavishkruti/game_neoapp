@@ -126,4 +126,23 @@ void main() {
     const unknown = MenuAccess(null);
     expect(unknown.canGame(GameType.oneDay), isTrue, reason: 'rights not known: hide nothing');
   });
+
+  test('a report or the party list needs its right too, not only its menu entry', () {
+    const menuOnly = MenuAccess(
+      {'game.Report.ViewParty', 'game.Report.ViewGeneral', 'game.Master.Party'},
+      {'master.view_general'},
+    );
+    expect(menuOnly.canViewParty, isFalse, reason: 'no master.view_party_ledger');
+    expect(menuOnly.canViewParties, isFalse, reason: 'no master.view_partymaster');
+    expect(menuOnly.canOpen(MenuKey.viewGeneral, 'master.view_general'), isTrue);
+
+    const full = MenuAccess(
+      {'game.Report.ViewParty', 'game.Master.Party', 'game.Soda.ClearingJournal'},
+      {'master.view_party_ledger', 'master.view_partymaster', 'soda.view_clearingjournal'},
+    );
+    expect(full.canViewParty, isTrue);
+    expect(full.canViewParties, isTrue);
+    expect(full.canClearingJv, isTrue);
+    expect(full.canInflowClearingJv, isFalse, reason: 'no inflow menu entry');
+  });
 }

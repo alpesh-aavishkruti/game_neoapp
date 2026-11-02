@@ -317,7 +317,8 @@ class MoreScreen extends ConsumerWidget {
       icon: Icons.domain_outlined,
       title: 'Company',
       menu: [MenuKey.company],
-      rights: [],
+      // The company settings are read under Account Master's view right.
+      rights: ['master.view_accountmaster'],
       subtitle: 'Name and address on reports',
       open: () => const CompanyScreen(),
     ),
@@ -357,7 +358,7 @@ class MoreScreen extends ConsumerWidget {
       icon: Icons.history_toggle_off,
       title: 'Edit / delete history',
       menu: [MenuKey.editDeleteHistory],
-      rights: [],
+      rights: ['soda.view_sodaauditlog'],
       subtitle: 'Bets changed or deleted',
       open: () => const AuditHistoryScreen(),
     ),
@@ -365,7 +366,7 @@ class MoreScreen extends ConsumerWidget {
       icon: Icons.receipt_long_outlined,
       title: 'Havala history',
       menu: [MenuKey.havalaHistory],
-      rights: [],
+      rights: ['soda.view_sodaauditlog'],
       subtitle: 'Havala changed or deleted',
       open: () => const AuditHistoryScreen(havala: true),
     ),
@@ -604,6 +605,10 @@ class MoreScreen extends ConsumerWidget {
                 // The recycle bin restores and destroys records for the whole
                 // company, so only its admins see it - as on the desk.
                 if ((item.title != 'Recycle bin' || _isAdmin(ref)) &&
+                    // Two lists behind one tile: shown when either may be read.
+                    (item.title != 'Clearing JV' ||
+                        ref.watch(menuAccessProvider).canClearingJv ||
+                        ref.watch(menuAccessProvider).canInflowClearingJv) &&
                     ref.watch(menuAccessProvider).canAny(item.menu) &&
                     item.rights.every(ref.watch(menuAccessProvider).has))
                   _MoreTile(
