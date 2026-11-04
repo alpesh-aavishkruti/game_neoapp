@@ -108,7 +108,8 @@ void main() {
     // and the desk's working is back in its own boxes
     expect(_boxText(tester, 'Qty'), '123');
     expect(_boxText(tester, 'Rate'), '12');
-    expect(_boxText(tester, 'Narration'), 'cash');
+    // The whole line, working and all, as the desk's description box shows it.
+    expect(_boxText(tester, 'Narration'), '123 X 12 cash');
   });
 
   testWidgets('saving an untouched edit keeps the entry Dena', (tester) async {
@@ -141,6 +142,47 @@ void main() {
     await tester.pump();
 
     expect(_boxText(tester, 'Amount'), '5852.00');
+    expect(_boxText(tester, 'Narration'), '44 X 133',
+        reason: 'the working shows in the narration as it is typed, as on the desk');
+  });
+
+  testWidgets('a remark typed after the working stays when the working changes',
+      (tester) async {
+    final havalas = _FakeHavalas();
+    await tester.pumpWidget(_host(havalas, fromPartyId: 15));
+    await tester.pumpAndSettle();
+    await tester.tap(find.textContaining('SUSPENSE').last);
+    await tester.pumpAndSettle();
+
+    final qty = find.byType(TextField).at(1);
+    final rate = find.byType(TextField).at(2);
+    final narration = find.byType(TextField).at(3);
+    await tester.enterText(qty, '-724215');
+    await tester.enterText(rate, '0.01');
+    await tester.pump();
+    expect(_boxText(tester, 'Narration'), '-724215 X 0.01');
+
+    await tester.enterText(narration, '-724215 X 0.01 cash');
+    await tester.enterText(rate, '0.02');
+    await tester.pump();
+    expect(_boxText(tester, 'Narration'), '-724215 X 0.02 cash');
+    expect(_boxText(tester, 'Amount'), '-14484.30');
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Save havala'));
+    await tester.pumpAndSettle();
+    expect(havalas.creates.single.description, '-724215 X 0.02 cash');
+  });
+
+  testWidgets('clearing the working takes it out of the narration', (tester) async {
+    await tester.pumpWidget(_host(_FakeHavalas()));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(1), '10');
+    await tester.enterText(find.byType(TextField).at(2), '5');
+    await tester.enterText(find.byType(TextField).at(3), '10 X 5 bank');
+    await tester.enterText(find.byType(TextField).at(1), '');
+    await tester.enterText(find.byType(TextField).at(2), '');
+    await tester.pump();
+    expect(_boxText(tester, 'Narration'), 'bank');
   });
 
   testWidgets('raised from an open statement, that party pays and the receiver search opens',

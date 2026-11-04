@@ -79,7 +79,11 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
     // Plain digits with a hyphen minus, not Money's typographic one, so the
     // box can be parsed back when it is saved.
     _amount.text = editing.amount.toStringAsFixed(2);
-    _note.text = narration.note;
+    // The narration box holds the whole line, working included, as the desk's
+    // description box does.
+    _note.text = editing.description.trim();
+    final working = _workingText();
+    if (working.isNotEmpty && _note.text.contains(working)) _working = working;
     _date = editing.date ?? DateTime.now();
   }
 
@@ -136,18 +140,36 @@ class _HavalaEntrySheetState extends ConsumerState<HavalaEntrySheet> {
     super.dispose();
   }
 
+  /// The "qty X rate" last written into the narration box, so a change to
+  /// the working replaces it there instead of adding a second one.
+  String _working = '';
+
+  String _workingText() =>
+      HavalaDescription.compose(qty: _qty.text, rate: _rate.text, note: '');
+
   /// Keeps the amount and the narration in step with the working.
+  ///
+  /// As on the desk, the working shows in the narration box the moment it is
+  /// typed, and whatever the operator writes after it stays as written.
   void _workingChanged() {
     final amount = HavalaDescription.amountFor(_qty.text, _rate.text);
     if (amount != null) _amount.text = amount.toStringAsFixed(2);
+
+    final next = _workingText();
+    final text = _note.text;
+    final rest = _working.isNotEmpty && text.contains(_working)
+        ? text.replaceFirst(_working, '')
+        : text;
+    final line = '$next ${rest.trim()}'.replaceAll(RegExp(r'\s+'), ' ').trim();
+    _note.value = TextEditingValue(
+      text: line,
+      selection: TextSelection.collapsed(offset: line.length),
+    );
+    _working = next;
     setState(() {});
   }
 
-  String get _description => HavalaDescription.compose(
-        qty: _qty.text,
-        rate: _rate.text,
-        note: _note.text,
-      );
+  String get _description => _note.text.replaceAll(RegExp(r'\s+'), ' ').trim();
 
   Future<void> _pickDate() async {
     final picked = await showDatePicker(
