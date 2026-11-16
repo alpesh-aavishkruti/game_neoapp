@@ -10,6 +10,7 @@ import 'clearing_jv_screen.dart';
 import 'audit_history_screen.dart';
 import 'edit_history_screen.dart';
 import 'master_list_screen.dart';
+import 'party_master_screen.dart';
 import 'brokerage_edit_sheet.dart';
 import 'change_password_sheet.dart';
 import 'company_screen.dart';
@@ -50,6 +51,14 @@ class MoreScreen extends ConsumerWidget {
         Widget Function() open,
       })>
   get _items => [
+    (
+      icon: Icons.groups_outlined,
+      title: 'Party master',
+      menu: [MenuKey.party],
+      rights: ['master.view_partymaster'],
+      subtitle: 'New party, edit, active, partners',
+      open: () => const PartyMasterScreen(manage: true),
+    ),
     (
       icon: Icons.storefront_outlined,
       title: 'Match master',

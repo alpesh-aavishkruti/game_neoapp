@@ -21,17 +21,30 @@ import '../../shared/widgets/app_dropdown.dart';
 /// It is per party, per game and per date, so a rate can change without
 /// rewriting what already settled at the old one.
 class BrokerageEditSheet extends ConsumerStatefulWidget {
-  const BrokerageEditSheet({super.key, this.editing});
+  const BrokerageEditSheet({super.key, this.editing, this.party, this.game});
 
   /// The row being corrected, or null when adding.
   final Map<String, dynamic>? editing;
 
-  static Future<bool?> show(BuildContext context, {Map<String, dynamic>? editing}) =>
+  /// Opened from one party's own record: the party is fixed rather than
+  /// picked, and may be one the pickers leave out (a deactivated party still
+  /// has its brokerage).
+  final Party? party;
+
+  /// The game to start on when adding.
+  final GameType? game;
+
+  static Future<bool?> show(
+    BuildContext context, {
+    Map<String, dynamic>? editing,
+    Party? party,
+    GameType? game,
+  }) =>
       showModalBottomSheet<bool>(
         context: context,
         isScrollControlled: true,
         useSafeArea: true,
-        builder: (_) => BrokerageEditSheet(editing: editing),
+        builder: (_) => BrokerageEditSheet(editing: editing, party: party, game: game),
       );
 
   @override
@@ -76,6 +89,12 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
 
   bool get _isEditing => widget.editing != null;
 
+  /// The party is the one this sheet was opened for, not a choice.
+  bool get _partyFixed => widget.party != null;
+
+  /// Stored partners are attached once, when the party list first arrives.
+  bool _hydrated = false;
+
   /// The row being written to, whether it was opened for editing or found by
   /// choosing a party and game.
   Map<String, dynamic>? get _target => widget.editing ?? _existing;
@@ -85,10 +104,14 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
   @override
   void initState() {
     super.initState();
+    _party = widget.party;
     final row = widget.editing;
-    if (row == null) return;
-
-    _applyFigures(row);
+    if (row != null) {
+      _game = GameType.parse(row['game_code']);
+      _applyFigures(row);
+    } else if (widget.game != null) {
+      _game = widget.game!;
+    }
   }
 
   /// Loads a stored row's figures into the form. The party and game are left
@@ -160,9 +183,20 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
   /// Re-attaches the parties once the list has loaded, since the stored row
   /// only carries their ids.
   void _hydrate(List<Party> parties) {
+    if (_hydrated) return;
+    _hydrated = true;
     final row = widget.editing;
-    if (row == null || _party != null) return;
-    _attachParties(row, parties);
+    if (row == null) {
+      // Opened for a party and a game: whatever the desk already holds for
+      // that pair is what this form is about, so it is read straight away.
+      if (_party != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _findExisting(parties);
+        });
+      }
+      return;
+    }
+    _attachParties(row, parties, includeParty: !_partyFixed);
   }
 
   void _attachParties(
@@ -374,17 +408,23 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      LabelledField(
-                        label: 'Party',
-                        child: PartyField(
-                          parties: list,
-                          selected: _party,
-                          onChanged: (p) {
-                            setState(() => _party = p);
-                            _findExisting(list);
-                          },
+                      if (!_partyFixed)
+                        LabelledField(
+                          label: 'Party',
+                          child: PartyField(
+                            parties: list,
+                            selected: _party,
+                            onChanged: (p) {
+                              setState(() => _party = p);
+                              _findExisting(list);
+                            },
+                          ),
+                        )
+                      else
+                        Text(
+                          _party!.display,
+                          style: context.text.titleSmall,
                         ),
-                      ),
                       const SizedBox(height: 14),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,10 +439,14 @@ class _BrokerageEditSheetState extends ConsumerState<BrokerageEditSheet> {
                                   for (final g in GameType.values)
                                     DropdownMenuItem(value: g, child: Text(g.label)),
                                 ],
-                                onChanged: (v) {
-                                  setState(() => _game = v ?? _game);
-                                  _findExisting(list);
-                                },
+                                // A stored row belongs to its game; moving it to
+                                // another would collide with that game's own row.
+                                onChanged: _isEditing
+                                    ? null
+                                    : (v) {
+                                        setState(() => _game = v ?? _game);
+                                        _findExisting(list);
+                                      },
                               ),
                             ),
                           ),

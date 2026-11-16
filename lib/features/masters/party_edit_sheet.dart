@@ -7,8 +7,11 @@ import '../../core/providers.dart';
 import '../../core/theme/app_theme.dart';
 import '../../data/models/party.dart';
 import '../../shared/widgets/field_label.dart';
+import '../../shared/widgets/status_chip.dart';
+import '../auth/menu_access.dart';
 import '../matches/match_providers.dart';
 import 'master_providers.dart';
+import 'party_brokerage_section.dart';
 import '../../shared/widgets/app_dropdown.dart';
 
 /// Adding a party, or correcting one.
@@ -16,8 +19,13 @@ import '../../shared/widgets/app_dropdown.dart';
 /// Only the code and the name are required - the same two the desk asks for.
 /// Everything else has a working default, so a client can be added mid-match
 /// without stopping to fill a form.
+///
+/// It opens two ways. As a sheet it is the quick add, reached from a code
+/// field mid-entry. As a page (Party master) it is the whole record: the same
+/// details plus whether the account is active and its commission and
+/// partnership for each game.
 class PartyEditSheet extends ConsumerStatefulWidget {
-  const PartyEditSheet({super.key, this.editing, this.initialCode});
+  const PartyEditSheet({super.key, this.editing, this.initialCode, this.asPage = false});
 
   /// Null when adding.
   final Party? editing;
@@ -26,6 +34,18 @@ class PartyEditSheet extends ConsumerStatefulWidget {
   /// they do not type it twice, and the party they get is the one they were
   /// looking for.
   final String? initialCode;
+
+  /// Shown as a full page with the account status and partnership sections.
+  final bool asPage;
+
+  /// Opens the whole record as a page. A new party stays open once saved, so
+  /// its commission and partners can be set straight after.
+  static Future<Party?> page(BuildContext context, {Party? editing}) =>
+      Navigator.of(context).push<Party>(
+        MaterialPageRoute(
+          builder: (_) => PartyEditSheet(editing: editing, asPage: true),
+        ),
+      );
 
   static Future<Party?> show(
     BuildContext context, {
@@ -61,7 +81,15 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
   bool _isBookie = false;
   bool _isOwn = false;
   bool _showInBook = false;
+
+  /// Whether the account can be used. A deactivated party keeps its balance
+  /// and history but is left out of every picker.
+  bool _isActive = true;
   bool _busy = false;
+
+  /// The party as last saved from this page. A new party becomes this on its
+  /// first save, and the page carries on as an edit of it.
+  Party? _saved;
 
   /// The stored party is still being read. Every field is saved, so the form
   /// must not be shown half-filled - saving from it would blank whatever had
@@ -69,7 +97,9 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
   bool _loading = false;
   String? _error;
 
-  bool get _isEditing => widget.editing != null;
+  Party? get _current => _saved ?? widget.editing;
+
+  bool get _isEditing => _current != null;
 
   @override
   void initState() {
@@ -83,6 +113,7 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
     _code.text = party.code;
     _name.text = party.name;
     _isBookie = party.isBookie;
+    _isActive = party.isActive;
     _loadStored(party.id);
   }
 
@@ -119,6 +150,7 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
         _isBookie = row['is_bookie'] == true;
         _isOwn = row['is_own'] == true;
         _showInBook = row['show_in_book'] == true;
+        _isActive = row['is_active'] != false;
         _categoryId = category is List && category.isNotEmpty
             ? int.tryParse('${category.first is Map ? (category.first as Map)['id'] : category.first}')
             : null;
@@ -185,11 +217,13 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
         'is_bookie': _isBookie,
         'is_own': _isOwn,
         'show_in_book': _showInBook,
-        'is_active': true,
+        // Sent as it stands on the form. This used to be a fixed true, which
+        // quietly switched a deactivated party back on whenever it was edited.
+        'is_active': _isEditing ? _isActive : true,
       };
 
       final body = _isEditing
-          ? await api.patch('/master/parties/${widget.editing!.id}/', data: payload)
+          ? await api.patch('/master/parties/${_current!.id}/', data: payload)
           : await api.post('/master/parties/', data: payload);
 
       // Every client-code field reads this list, so it has to be refreshed
@@ -197,7 +231,21 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
       ref.invalidate(allPartiesProvider);
 
       final saved = Party.fromJson(asMap(body));
-      if (mounted) Navigator.of(context).pop(saved.id == 0 ? null : saved);
+      if (!mounted) return;
+
+      // A new party added from Party master stays on the page: what it is
+      // paid and who shares its book can only be set once it exists.
+      if (widget.asPage && widget.editing == null && _saved == null && saved.id != 0) {
+        setState(() {
+          _saved = saved;
+          _code.text = saved.code;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${saved.code} added. Set its commission and partners below.'),
+        ));
+        return;
+      }
+      Navigator.of(context).pop(saved.id == 0 ? null : saved);
     } on ApiException catch (e) {
       if (mounted) {
         setState(() => _error = e.fieldErrors?['party_code'] ?? e.message);
@@ -209,8 +257,335 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
     }
   }
 
+  /// The party's own details: the same fields whether it opens as the quick
+  /// sheet or as the full page.
+  List<Widget> _detailFields(BuildContext context) => [
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 2,
+            child: LabelledField(
+              label: 'Party code',
+              child: TextField(
+                controller: _code,
+                autofocus: !_isEditing,
+                textCapitalization: TextCapitalization.characters,
+                autocorrect: false,
+                decoration: const InputDecoration(hintText: 'RAJ01'),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            flex: 3,
+            child: LabelledField(
+              label: 'Party name',
+              child: TextField(
+                controller: _name,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(hintText: 'Rajesh Traders'),
+              ),
+            ),
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 14),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: LabelledField(
+              label: 'City',
+              child: TextField(
+                controller: _city,
+                textCapitalization: TextCapitalization.words,
+                decoration: const InputDecoration(hintText: 'Optional'),
+              ),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: LabelledField(
+              label: 'Mobile',
+              child: TextField(
+                controller: _mobile,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(hintText: 'Optional'),
+              ),
+            ),
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 14),
+      LabelledField(
+        label: 'Credit limit',
+        child: TextField(
+          controller: _creditLimit,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(hintText: '0'),
+          style: const TextStyle(fontFamily: 'Roboto Mono', fontWeight: FontWeight.w700),
+        ),
+      ),
+
+      const SizedBox(height: 14),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: LabelledField(
+              label: 'Rec int %',
+              child: TextField(
+                controller: _recInt,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(hintText: '0'),
+                style: const TextStyle(
+                    fontFamily: 'Roboto Mono', fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const SizedBox(width: 11),
+          Expanded(
+            child: LabelledField(
+              label: 'Pay int %',
+              child: TextField(
+                controller: _payInt,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(hintText: '0'),
+                style: const TextStyle(
+                    fontFamily: 'Roboto Mono', fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+
+      const SizedBox(height: 14),
+      LabelledField(
+        label: 'Category',
+        child: Consumer(
+          builder: (context, ref, _) {
+            final rows =
+                ref.watch(masterRowsProvider('/master/party-categories/'));
+            return AppDropdown<int?>(
+              initialValue: _categoryId,
+              isExpanded: true,
+              hint: const Text('None'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('None')),
+                for (final row in rows.value ?? const [])
+                  DropdownMenuItem(
+                    value: int.tryParse('${row['id']}'),
+                    child: Text(
+                      (row['category_name'] ?? '').toString(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _categoryId = v),
+            );
+          },
+        ),
+      ),
+
+      const SizedBox(height: 14),
+      LabelledField(
+        label: 'Ref member',
+        child: Consumer(
+          builder: (context, ref, _) {
+            final parties =
+                ref.watch(partiesProvider).value ?? const <Party>[];
+            // A party cannot introduce itself.
+            final others = parties
+                .where((p) => p.id != _current?.id)
+                .toList();
+            return AppDropdown<int?>(
+              initialValue: others.any((p) => p.id == _refMemberId)
+                  ? _refMemberId
+                  : null,
+              isExpanded: true,
+              hint: const Text('None'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('None')),
+                for (final p in others)
+                  DropdownMenuItem(
+                    value: p.id,
+                    child: Text(
+                      p.display,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _refMemberId = v),
+            );
+          },
+        ),
+      ),
+
+      const SizedBox(height: 6),
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Is bookie', style: TextStyle(fontSize: 14)),
+        value: _isBookie,
+        onChanged: (v) => setState(() => _isBookie = v),
+      ),
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Is own', style: TextStyle(fontSize: 14)),
+        value: _isOwn,
+        onChanged: (v) => setState(() => _isOwn = v),
+      ),
+      SwitchListTile.adaptive(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Show in book', style: TextStyle(fontSize: 14)),
+        value: _showInBook,
+        onChanged: (v) => setState(() => _showInBook = v),
+      ),
+      ];
+
+  Widget _errorText(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Text(_error!, style: context.text.bodyMedium?.copyWith(color: context.book.down)),
+      );
+
+  Widget _saveButton({required bool allowed}) => FilledButton(
+        onPressed: _busy || _loading || !allowed ? null : _save,
+        child: _busy
+            ? const SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : Text(_isEditing ? 'Save changes' : 'Add party'),
+      );
+
+  /// Switching a party off is the one change here that hides it from every
+  /// entry screen, so it is asked about rather than taken from a stray tap.
+  Future<void> _setActive(bool value) async {
+    if (value) {
+      setState(() => _isActive = true);
+      return;
+    }
+    final code = _code.text.trim().toUpperCase();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Deactivate ${code.isEmpty ? 'this party' : code}?'),
+        content: const Text(
+          'It will not appear in any party picker, so no new entry can be made '
+          'for it. Its balance, ledger and history stay as they are, and it '
+          'can be switched back on here at any time.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Deactivate'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) setState(() => _isActive = false);
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => widget.asPage ? _buildPage(context) : _buildSheet(context);
+
+  Widget _buildPage(BuildContext context) {
+    final access = ref.watch(menuAccessProvider);
+    final current = _current;
+
+    // The server checks these too; the page only says so before a save is
+    // attempted rather than after.
+    final allowed = _isEditing
+        ? access.has('master.change_partymaster')
+        : access.has('master.add_partymaster');
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_isEditing ? 'Edit party' : 'New party'),
+        actions: [
+          if (current != null && !_isActive)
+            const Padding(
+              padding: EdgeInsets.only(right: 14),
+              child: Center(child: StatusChip('Deactivated', tone: ChipTone.down)),
+            ),
+        ],
+      ),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+              children: [
+                if (current != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Text(current.display, style: context.text.titleMedium),
+                  )
+                else
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 14),
+                    child: Text(
+                      'Only the code and name are needed. Commission and partners '
+                      'can be set once the party is added.',
+                      style: context.text.bodySmall,
+                    ),
+                  ),
+                Text('DETAILS', style: context.text.labelSmall),
+                const SizedBox(height: 8),
+                ..._detailFields(context),
+
+                if (_isEditing) ...[
+                  const SizedBox(height: 10),
+                  Text('ACCOUNT', style: context.text.labelSmall),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Active', style: TextStyle(fontSize: 14)),
+                    subtitle: Text(
+                      _isActive
+                          ? 'Can be picked for new entries'
+                          : 'Hidden from every picker. Balance and history are kept.',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    value: _isActive,
+                    onChanged: _setActive,
+                  ),
+                ],
+
+                if (_error != null) _errorText(context),
+                if (!allowed)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10),
+                    child: Text(
+                      _isEditing
+                          ? 'Your role may not edit parties.'
+                          : 'Your role may not add parties.',
+                      style: context.text.bodySmall,
+                    ),
+                  ),
+                const SizedBox(height: 14),
+                _saveButton(allowed: allowed),
+
+                if (current != null) ...[
+                  const SizedBox(height: 26),
+                  PartyBrokerageSection(party: current),
+                ],
+              ],
+            ),
+    );
+  }
+
+  Widget _buildSheet(BuildContext context) {
     final book = context.book;
 
     return Padding(
@@ -236,205 +611,12 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
               Text(_isEditing ? 'Edit party' : 'New party', style: context.text.titleMedium),
               const SizedBox(height: 2),
               Text(
-                _isEditing ? widget.editing!.display : 'Only the code and name are needed',
+                _isEditing ? _current!.display : 'Only the code and name are needed',
                 style: context.text.bodySmall,
               ),
               const SizedBox(height: 16),
-
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: LabelledField(
-                      label: 'Party code',
-                      child: TextField(
-                        controller: _code,
-                        autofocus: !_isEditing,
-                        textCapitalization: TextCapitalization.characters,
-                        autocorrect: false,
-                        decoration: const InputDecoration(hintText: 'RAJ01'),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    flex: 3,
-                    child: LabelledField(
-                      label: 'Party name',
-                      child: TextField(
-                        controller: _name,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(hintText: 'Rajesh Traders'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: LabelledField(
-                      label: 'City',
-                      child: TextField(
-                        controller: _city,
-                        textCapitalization: TextCapitalization.words,
-                        decoration: const InputDecoration(hintText: 'Optional'),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Mobile',
-                      child: TextField(
-                        controller: _mobile,
-                        keyboardType: TextInputType.phone,
-                        decoration: const InputDecoration(hintText: 'Optional'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 14),
-              LabelledField(
-                label: 'Credit limit',
-                child: TextField(
-                  controller: _creditLimit,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: const InputDecoration(hintText: '0'),
-                  style: const TextStyle(fontFamily: 'Roboto Mono', fontWeight: FontWeight.w700),
-                ),
-              ),
-
-              const SizedBox(height: 14),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Rec int %',
-                      child: TextField(
-                        controller: _recInt,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(hintText: '0'),
-                        style: const TextStyle(
-                            fontFamily: 'Roboto Mono', fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: LabelledField(
-                      label: 'Pay int %',
-                      child: TextField(
-                        controller: _payInt,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        decoration: const InputDecoration(hintText: '0'),
-                        style: const TextStyle(
-                            fontFamily: 'Roboto Mono', fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 14),
-              LabelledField(
-                label: 'Category',
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final rows =
-                        ref.watch(masterRowsProvider('/master/party-categories/'));
-                    return AppDropdown<int?>(
-                      initialValue: _categoryId,
-                      isExpanded: true,
-                      hint: const Text('None'),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('None')),
-                        for (final row in rows.value ?? const [])
-                          DropdownMenuItem(
-                            value: int.tryParse('${row['id']}'),
-                            child: Text(
-                              (row['category_name'] ?? '').toString(),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                      onChanged: (v) => setState(() => _categoryId = v),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 14),
-              LabelledField(
-                label: 'Ref member',
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final parties =
-                        ref.watch(partiesProvider).value ?? const <Party>[];
-                    // A party cannot introduce itself.
-                    final others = parties
-                        .where((p) => p.id != widget.editing?.id)
-                        .toList();
-                    return AppDropdown<int?>(
-                      initialValue: others.any((p) => p.id == _refMemberId)
-                          ? _refMemberId
-                          : null,
-                      isExpanded: true,
-                      hint: const Text('None'),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('None')),
-                        for (final p in others)
-                          DropdownMenuItem(
-                            value: p.id,
-                            child: Text(
-                              p.display,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                      ],
-                      onChanged: (v) => setState(() => _refMemberId = v),
-                    );
-                  },
-                ),
-              ),
-
-              const SizedBox(height: 6),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Is bookie', style: TextStyle(fontSize: 14)),
-                value: _isBookie,
-                onChanged: (v) => setState(() => _isBookie = v),
-              ),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Is own', style: TextStyle(fontSize: 14)),
-                value: _isOwn,
-                onChanged: (v) => setState(() => _isOwn = v),
-              ),
-              SwitchListTile.adaptive(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Show in book', style: TextStyle(fontSize: 14)),
-                value: _showInBook,
-                onChanged: (v) => setState(() => _showInBook = v),
-              ),
-
-              if (_error != null) ...[
-                const SizedBox(height: 10),
-                Text(_error!, style: context.text.bodyMedium?.copyWith(color: book.down)),
-              ],
-
+              ..._detailFields(context),
+              if (_error != null) _errorText(context),
               const SizedBox(height: 16),
               Row(
                 children: [
@@ -445,18 +627,7 @@ class _PartyEditSheetState extends ConsumerState<PartyEditSheet> {
                     ),
                   ),
                   const SizedBox(width: 11),
-                  Expanded(
-                    child: FilledButton(
-                      onPressed: _busy || _loading ? null : _save,
-                      child: _busy
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                            )
-                          : Text(_isEditing ? 'Save changes' : 'Add party'),
-                    ),
-                  ),
+                  Expanded(child: _saveButton(allowed: true)),
                 ],
               ),
             ],

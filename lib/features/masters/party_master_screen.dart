@@ -16,8 +16,15 @@ import '../auth/menu_access.dart';
 ///
 /// Opened dozens of times a day just to check a code, a category or a balance,
 /// so every row answers those without opening the record.
+///
+/// The bottom-bar tab is for looking up: a tap opens the statement. Opened
+/// from More as Party master ([manage]) it is for keeping the records: a tap
+/// opens the party itself, and the list can be narrowed to active or
+/// deactivated accounts.
 class PartyMasterScreen extends ConsumerStatefulWidget {
-  const PartyMasterScreen({super.key});
+  const PartyMasterScreen({super.key, this.manage = false});
+
+  final bool manage;
 
   @override
   ConsumerState<PartyMasterScreen> createState() => _PartyMasterScreenState();
@@ -25,6 +32,9 @@ class PartyMasterScreen extends ConsumerStatefulWidget {
 
 class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
   final _search = TextEditingController();
+
+  /// Null shows every party; otherwise only active (true) or deactivated.
+  bool? _activeOnly;
 
   @override
   void dispose() {
@@ -34,9 +44,10 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
 
   List<Party> _filter(List<Party> parties) {
     final term = _search.text.trim().toUpperCase();
-    if (term.isEmpty) return parties;
     return parties
-        .where((p) => p.code.contains(term) || p.name.toUpperCase().contains(term))
+        .where((p) => _activeOnly == null || p.isActive == _activeOnly)
+        .where((p) =>
+            term.isEmpty || p.code.contains(term) || p.name.toUpperCase().contains(term))
         .toList();
   }
 
@@ -49,7 +60,7 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
       providers: [allPartiesProvider],
       child: Scaffold(
       appBar: AppBar(
-        title: const Text('Parties'),
+        title: Text(widget.manage ? 'Party master' : 'Parties'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Padding(
@@ -79,8 +90,8 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
       floatingActionButton: FloatingActionButton.extended(
         // The shell keeps every tab alive at once, so each button needs its
         // own tag or opening any screen trips over two identical heroes.
-        heroTag: 'fab-add-party',
-        onPressed: () => PartyEditSheet.show(context),
+        heroTag: widget.manage ? 'fab-add-party-master' : 'fab-add-party',
+        onPressed: () => PartyEditSheet.page(context),
         icon: const Icon(Icons.person_add_alt),
         label: const Text('Add party'),
       ),
@@ -93,14 +104,38 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
           emptyTitle: 'No parties yet',
           builder: (list) {
             final shown = _filter(list);
+            final off = list.where((p) => !p.isActive).length;
+            final filters = widget.manage
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 6),
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final (value, label) in [
+                          (null, 'All ${list.length}'),
+                          (true, 'Active ${list.length - off}'),
+                          (false, 'Deactivated $off'),
+                        ])
+                          ChoiceChip(
+                            label: Text(label),
+                            selected: _activeOnly == value,
+                            onSelected: (_) => setState(() => _activeOnly = value),
+                          ),
+                      ],
+                    ),
+                  )
+                : null;
             if (shown.isEmpty) {
               return ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 children: [
+                  ?filters,
                   const SizedBox(height: 70),
                   Center(
                     child: Text(
-                      'Nothing matches "${_search.text.trim()}"',
+                      _search.text.trim().isEmpty
+                          ? 'No parties here'
+                          : 'Nothing matches "${_search.text.trim()}"',
                       style: context.text.bodyMedium,
                     ),
                   ),
@@ -110,12 +145,18 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
 
             return Column(
               children: [
+                ?filters,
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      '${shown.length} of ${list.length} active',
+                      // The list holds deactivated parties too, so it says
+                      // how many rather than calling them all active.
+                      [
+                        '${shown.length} of ${list.length} parties',
+                        if (off > 0) '$off deactivated',
+                      ].join(' · '),
                       style: context.text.labelSmall,
                     ),
                   ),
@@ -127,6 +168,7 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
                     itemCount: shown.length,
                     itemBuilder: (context, i) => _PartyRow(
                       party: shown[i],
+                      manage: widget.manage,
                       canViewParty: ref.watch(menuAccessProvider).canViewParty,
                     ),
                   ),
@@ -142,9 +184,12 @@ class _PartyMasterScreenState extends ConsumerState<PartyMasterScreen> {
 }
 
 class _PartyRow extends StatelessWidget {
-  const _PartyRow({required this.party, required this.canViewParty});
+  const _PartyRow({required this.party, required this.canViewParty, this.manage = false});
 
   final Party party;
+
+  /// Opened from Party master: the record is what a tap is for.
+  final bool manage;
 
   /// Whether the statement may be opened. Without the right it opened only to
   /// spin and say "You do not have permission", so the tap does nothing then.
@@ -154,16 +199,17 @@ class _PartyRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final book = context.book;
 
+    void statement() => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => LedgerScreen(party: party)),
+        );
+    void record() => PartyEditSheet.page(context, editing: party);
+
     return InkWell(
-      onTap: canViewParty
-          ? () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => LedgerScreen(party: party)),
-              )
-          : null,
-      // Tapping opens the statement, which is what this list is mostly used
-      // for; editing the record itself is the rarer intent, so it sits behind
-      // a long press rather than competing for the tap.
-      onLongPress: () => PartyEditSheet.show(context, editing: party),
+      // On the tab, tapping opens the statement, which is what that list is
+      // mostly used for, and the record sits behind a long press. Party
+      // master is for the records, so there the two swap.
+      onTap: manage ? record : (canViewParty ? statement : null),
+      onLongPress: manage ? (canViewParty ? statement : null) : record,
       child: Container(
         decoration: BoxDecoration(
           color: context.scheme.surface,
