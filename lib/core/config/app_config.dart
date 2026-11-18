@@ -14,6 +14,11 @@ class AppConfig {
   /// Origin of the Django backend, with no trailing slash and no path.
   static String get apiBaseUrl {
     if (_envUrl.isNotEmpty) return _envUrl;
+    // A release build goes to people's phones, where the dev addresses below
+    // lead nowhere. The API is on api.neonacc.com (neonacc.com is only the web
+    // desk's pages and turns every POST away), as the web desk's own
+    // VITE_APP_API_URL says. Only debug and profile builds fall back below.
+    if (kReleaseMode) return 'https://api.neonacc.com';
     if (kIsWeb ||
         defaultTargetPlatform == TargetPlatform.macOS ||
         defaultTargetPlatform == TargetPlatform.linux ||

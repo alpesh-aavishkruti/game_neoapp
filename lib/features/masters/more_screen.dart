@@ -23,6 +23,7 @@ import 'role_permissions_screen.dart';
 import 'user_edit_sheet.dart';
 import 'recall_screen.dart';
 import 'recycle_bin_screen.dart';
+import 'share_links_screen.dart';
 import '../money/opening_balance_screen.dart';
 import '../auth/menu_access.dart';
 
@@ -356,6 +357,14 @@ class MoreScreen extends ConsumerWidget {
       open: () => const RecycleBinScreen(),
     ),
     (
+      icon: Icons.link,
+      title: 'Share links',
+      menu: [],
+      rights: [],
+      subtitle: 'Ledger links, on and off',
+      open: () => const ShareLinksScreen(),
+    ),
+    (
       icon: Icons.manage_history,
       title: 'Edit history',
       menu: [],
@@ -613,7 +622,9 @@ class MoreScreen extends ConsumerWidget {
               for (final item in _items)
                 // The recycle bin restores and destroys records for the whole
                 // company, so only its admins see it - as on the desk.
+                // Share links lists every party's ledger link - admins only too.
                 if ((item.title != 'Recycle bin' || _isAdmin(ref)) &&
+                    (item.title != 'Share links' || _isAdmin(ref)) &&
                     // Two lists behind one tile: shown when either may be read.
                     (item.title != 'Clearing JV' ||
                         ref.watch(menuAccessProvider).canClearingJv ||
